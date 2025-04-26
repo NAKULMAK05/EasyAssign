@@ -23,8 +23,6 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Check,
-  CheckCheck,
   MessageSquare,
 } from "lucide-react";
 import {
@@ -102,34 +100,6 @@ interface Task {
   status?: string;
 }
 
-interface Message {
-  _id: string;
-  text: string;
-  sender: string | { _id: string; name: string; photo: string };
-  timestamp: string;
-  status?: "sent" | "delivered" | "read" | "pending";
-  attachments?: string[];
-}
-
-interface Conversation {
-  _id: string;
-  participants: (string | { _id: string; name: string; photo: string })[];
-  messages: Message[];
-  task?: string | { _id: string; title: string; status?: string };
-  unreadCount?: number;
-  lastActivity?: string;
-  pinned?: boolean;
-}
-
-// Helper: Ensure sender is always an object
-function getSender(
-  sender: string | { _id: string; name: string; photo: string }
-) {
-  return typeof sender === "object"
-    ? sender
-    : { _id: sender, name: "User", photo: "" };
-}
-
 export default function TaskDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -144,8 +114,17 @@ export default function TaskDetailsPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [similarTasks, setSimilarTasks] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [currentUserId, setCurrentUserId] = useState("");
 
-  // Fetch task details and update in real time
+  // Load current user's ID from localStorage after mount.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedId = localStorage.getItem("userId") || "";
+      setCurrentUserId(storedId);
+    }
+  }, []);
+
+  // Fetch task details
   useEffect(() => {
     if (!id) return;
     async function fetchTask() {
@@ -157,8 +136,7 @@ export default function TaskDetailsPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setTask(response.data);
-
-        // Simulate similar tasks (replace with real API call if available)
+        // Simulate similar tasks.
         setSimilarTasks([
           {
             id: "sim1",
@@ -183,31 +161,39 @@ export default function TaskDetailsPage() {
       }
     }
     fetchTask();
-    const interval = setInterval(fetchTask, 10000); // refresh every 10 seconds
+    const interval = setInterval(fetchTask, 10000); // Refresh every 10 seconds
     return () => clearInterval(interval);
   }, [id]);
 
-  // Handle application: send application to backend
+  // Handle application: include freelancerId in the request body.
   const handleApply = async (e: FormEvent) => {
     e.preventDefault();
     if (!applicationMessage.trim()) return;
     setIsApplying(true);
     try {
       const token = localStorage.getItem("token");
+      // Include freelancerId in request body to fix ObjectId casting issue.
       const response = await axios.post(
         `http://localhost:5000/api/tasks/${id}/apply`,
-        { message: applicationMessage },
+        { freelancerId: currentUserId, message: applicationMessage },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Update task with new application info
+      // Update task details if needed (for example, updating applications count)
       setTask(response.data.task);
       setApplicationSuccess(true);
+      // Redirect to chat page if backend creates a new conversation, e.g.,
+      if (response.data.conversationId) {
+        router.push(`/notifications/chat/${response.data.conversationId}`);
+      }
       setTimeout(() => {
         setApplicationMessage("");
         setApplicationSuccess(false);
       }, 3000);
-    } catch (err) {
-      console.error("Error applying for task:", err);
+    } catch (err: any) {
+      console.error("Error applying for task:", JSON.stringify(err.response?.data) || err.message);
+      if (err.response?.data?.message === "You have already applied for this task.") {
+        alert("You have already applied for this task.");
+      }
     } finally {
       setIsApplying(false);
     }
@@ -274,7 +260,9 @@ export default function TaskDetailsPage() {
         <div className="max-w-2xl mx-auto bg-muted/30 rounded-lg p-12">
           <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Task Not Found</h2>
-          <p className="text-muted-foreground mb-6">The task you're looking for doesn't exist or has been removed.</p>
+          <p className="text-muted-foreground mb-6">
+            The task you're looking for doesn't exist or has been removed.
+          </p>
           <Button onClick={() => router.back()} className="flex items-center gap-2">
             <ChevronLeft className="h-4 w-4" />
             Back to Dashboard
@@ -443,9 +431,7 @@ export default function TaskDetailsPage() {
                             {task.images.map((img: string, index: number) => (
                               <div
                                 key={index}
-                                className={`aspect-square rounded-md overflow-hidden cursor-pointer border-2 ${
-                                  index === activeImageIndex ? "border-primary" : "border-transparent"
-                                }`}
+                                className={`aspect-square rounded-md overflow-hidden cursor-pointer border-2 ${index === activeImageIndex ? "border-primary" : "border-transparent"}`}
                                 onClick={() => setActiveImageIndex(index)}
                               >
                                 <img
@@ -688,9 +674,7 @@ export default function TaskDetailsPage() {
                                 0,
                                 Math.min(
                                   100,
-                                  ((new Date(task.deadline).getTime() - Date.now()) /
-                                    (1000 * 60 * 60 * 24 * 30)) *
-                                    100
+                                  ((new Date(task.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)) * 100
                                 )
                               )
                             : 100

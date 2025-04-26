@@ -3,6 +3,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.clip-path-triangle-right {
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+.clip-path-triangle-left {
+  clip-path: polygon(0 0, 0 100%, 100% 0);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -73,7 +73,7 @@ export default function ProfilePage() {
       userData.photo,
       userData.linkedIn,
       userData.github,
-      userData.skills && userData.skills.length > 0
+      userData.skills?.length > 0 // Check if skills exist
     ];
     
     const filledFields = fields.filter(Boolean).length;
@@ -119,8 +119,8 @@ export default function ProfilePage() {
       formData.append("phone", phone);
       formData.append("college", college);
       formData.append("bio", bio);
-      formData.append("linkedinUrl", linkedinUrl);
-      formData.append("githubUrl", githubUrl);
+      formData.append("linkedIn", linkedinUrl);
+      formData.append("github", githubUrl);
       formData.append("skills", JSON.stringify(skills));
       
       if (photoFile) {
@@ -211,7 +211,7 @@ export default function ProfilePage() {
                 
                 <Separator className="my-4" />
                 
-                <div className="flex gap-2 w-full">
+                <div className=" flex gap-2 w-25 mr-35">
                   {linkedinUrl && (
                     <Button variant="outline" size="icon" asChild className="w-full">
                       <a href={linkedinUrl} target="_blank" rel="noopener noreferrer">
