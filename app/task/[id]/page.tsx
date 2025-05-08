@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, FormEvent, useRef } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import axios from "axios";
 import {
-  ArrowLeft,
-  Calendar,
+  ChevronLeft,
+  ChevronRight,
   Clock,
+  Calendar,
   DollarSign,
   Tag,
   User,
@@ -21,8 +22,6 @@ import {
   AlertCircle,
   CheckCircle,
   ExternalLink,
-  ChevronLeft,
-  ChevronRight,
   MessageSquare,
 } from "lucide-react";
 import {
@@ -39,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 
@@ -51,13 +50,6 @@ const formatDate = (dateString: string) => {
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
-};
-
-const formatTime = (timestamp: string) => {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
   });
 };
 
@@ -112,9 +104,8 @@ export default function TaskDetailsPage() {
   const [applicationMessage, setApplicationMessage] = useState("");
   const [applicationSuccess, setApplicationSuccess] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [similarTasks, setSimilarTasks] = useState<any[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentUserId, setCurrentUserId] = useState("");
+  const [popUpMessage, setPopUpMessage] = useState<string | null>(null);
 
   // Load current user's ID from localStorage after mount.
   useEffect(() => {
@@ -136,23 +127,6 @@ export default function TaskDetailsPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setTask(response.data);
-        // Simulate similar tasks.
-        setSimilarTasks([
-          {
-            id: "sim1",
-            title: "Similar Web Development Project",
-            category: response.data.category,
-            budget: response.data.budget * 0.9,
-            deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: "sim2",
-            title: "Related Design Task",
-            category: response.data.category,
-            budget: response.data.budget * 1.1,
-            deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-        ]);
       } catch (err: any) {
         console.error("Error fetching task:", err.response?.data || err.message);
         setError(err.response?.data?.message || "Failed to fetch task details");
@@ -161,38 +135,34 @@ export default function TaskDetailsPage() {
       }
     }
     fetchTask();
-    const interval = setInterval(fetchTask, 10000); // Refresh every 10 seconds
-    return () => clearInterval(interval);
   }, [id]);
 
-  // Handle application: include freelancerId in the request body.
+  // Handle application: include freelancerId in request body.
   const handleApply = async (e: FormEvent) => {
     e.preventDefault();
     if (!applicationMessage.trim()) return;
     setIsApplying(true);
     try {
       const token = localStorage.getItem("token");
-      // Include freelancerId in request body to fix ObjectId casting issue.
       const response = await axios.post(
         `http://localhost:5000/api/tasks/${id}/apply`,
         { freelancerId: currentUserId, message: applicationMessage },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Update task details if needed (for example, updating applications count)
       setTask(response.data.task);
+      setPopUpMessage("Application submitted successfully!");
       setApplicationSuccess(true);
-      // Redirect to chat page if backend creates a new conversation, e.g.,
-      if (response.data.conversationId) {
-        router.push(`/notifications/chat/${response.data.conversationId}`);
-      }
       setTimeout(() => {
         setApplicationMessage("");
         setApplicationSuccess(false);
       }, 3000);
     } catch (err: any) {
-      console.error("Error applying for task:", JSON.stringify(err.response?.data) || err.message);
-      if (err.response?.data?.message === "You have already applied for this task.") {
-        alert("You have already applied for this task.");
+      if (err.response?.data?.message === "You cannot apply for your own task.") {
+        setPopUpMessage("You cannot apply for your own task.");
+      } else if (err.response?.data?.message === "You have already applied for this task.") {
+        setPopUpMessage("You have already applied for this task.");
+      } else {
+        setPopUpMessage(err.response?.data?.message || "Failed to submit application.");
       }
     } finally {
       setIsApplying(false);
@@ -214,7 +184,7 @@ export default function TaskDetailsPage() {
         .catch((err) => console.error("Error sharing:", err));
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
+      setPopUpMessage("Link copied to clipboard!");
     }
   };
 
@@ -275,79 +245,92 @@ export default function TaskDetailsPage() {
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen pb-12">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-900 border-b sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="bg-white dark:bg-gray-900 border-b sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back
+            <ChevronLeft className="h-5 w-5" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleSaveTask}>
-              <Bookmark className="h-4 w-4 mr-2" />
-              {isSaved ? "Saved" : "Save"}
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={handleSaveTask} className="flex items-center gap-1">
+              <Bookmark className="h-5 w-5" />
+              <span>{isSaved ? "Saved" : "Save"}</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleShareTask}>
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
+            <Button variant="outline" size="sm" onClick={handleShareTask} className="flex items-center gap-1">
+              <Share2 className="h-5 w-5" />
+              <span>Share</span>
             </Button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="container mx-auto px-4 py-8">
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-8 max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Task Header */}
+          {/* Left Section: Task Details and Task Progress */}
+          <div className="lg:col-span-2 space-y-8">
             <div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-4 mb-3">
                 <Badge variant="outline" className="text-sm font-medium">
                   {task.category}
                 </Badge>
                 {getStatusBadge(task.status || "open")}
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">{task.title}</h1>
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+                {task.title}
+              </h1>
+              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-5 w-5" />
                   <span>Posted on {formatDate(task.createdAt)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
+                  <Clock className="h-5 w-5" />
                   <span>Deadline: {formatDate(task.deadline)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <User className="h-4 w-4" />
+                  <User className="h-5 w-5" />
                   <span>{task.applications?.length || 0} applicants</span>
                 </div>
               </div>
             </div>
 
-            {/* Task Content Tabs */}
+            {/* Tabs for Task Content */}
             <Tabs defaultValue="description" className="w-full">
-              <TabsList className="w-full grid grid-cols-3 mb-6">
-                <TabsTrigger value="description">Description</TabsTrigger>
-                <TabsTrigger value="images">Images</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsList className="grid grid-cols-3 gap-2 mb-6">
+                <TabsTrigger value="description" className="px-4 py-2 rounded-md">
+                  Description
+                </TabsTrigger>
+                <TabsTrigger value="images" className="px-4 py-2 rounded-md">
+                  Images
+                </TabsTrigger>
+                <TabsTrigger value="details" className="px-4 py-2 rounded-md">
+                  Details
+                </TabsTrigger>
               </TabsList>
-
-              <TabsContent value="description" className="space-y-4">
-                <Card className="border-none shadow-md">
+              <TabsContent value="description" className="space-y-6">
+                <Card className="shadow-md">
                   <CardContent className="p-6">
                     <div className="prose dark:prose-invert max-w-none">
-                      <p className="text-lg leading-relaxed whitespace-pre-line">{task.description}</p>
+                      <p className="text-lg leading-relaxed whitespace-pre-line">
+                        {task.description}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
                 {task.skills && task.skills.length > 0 && (
-                  <Card className="border-none shadow-md">
-                    <CardHeader>
+                  <Card className="shadow-md">
+                    <CardHeader className="px-6 pt-6">
                       <CardTitle className="text-xl">Required Skills</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 pt-0">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         {task.skills.map((skill: string, index: number) => (
-                          <Badge key={index} variant="secondary" className="px-3 py-1 text-sm">
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="px-3 py-1 text-sm"
+                          >
                             {skill}
                           </Badge>
                         ))}
@@ -356,21 +339,22 @@ export default function TaskDetailsPage() {
                   </Card>
                 )}
               </TabsContent>
-
               <TabsContent value="images">
-                <Card className="border-none shadow-md overflow-hidden">
-                  <CardHeader>
+                <Card className="shadow-md overflow-hidden">
+                  <CardHeader className="px-6 pt-6">
                     <CardTitle className="text-xl">Task Images</CardTitle>
-                    <CardDescription>
+                    <CardDescription className="mt-1">
                       {task.images && task.images.length > 0
-                        ? `${task.images.length} image${task.images.length > 1 ? "s" : ""} attached`
+                        ? `${task.images.length} ${
+                            task.images.length > 1 ? "images" : "image"
+                          } attached`
                         : "No images attached"}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="p-6 pt-0">
+                  <CardContent className="p-6 pt-4">
                     {task.images && task.images.length > 0 ? (
-                      <div className="space-y-6">
-                        <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                      <div className="space-y-4">
+                        <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
                           <img
                             src={
                               task.images[activeImageIndex].startsWith("http")
@@ -385,7 +369,7 @@ export default function TaskDetailsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white rounded-full h-8 w-8"
+                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2"
                                 onClick={prevImage}
                               >
                                 <ChevronLeft className="h-5 w-5" />
@@ -393,7 +377,7 @@ export default function TaskDetailsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white rounded-full h-8 w-8"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2"
                                 onClick={nextImage}
                               >
                                 <ChevronRight className="h-5 w-5" />
@@ -405,13 +389,14 @@ export default function TaskDetailsPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="absolute bottom-2 right-2 bg-black/20 hover:bg-black/40 text-white"
+                                className="absolute bottom-4 right-4 bg-black/30 text-white rounded-md px-3 py-1"
                               >
                                 <ExternalLink className="h-4 w-4 mr-2" />
                                 View Full Size
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] p-0 overflow-hidden">
+                              <DialogTitle className="sr-only">Full Size Image</DialogTitle>
                               <div className="relative w-full h-full">
                                 <img
                                   src={
@@ -431,12 +416,20 @@ export default function TaskDetailsPage() {
                             {task.images.map((img: string, index: number) => (
                               <div
                                 key={index}
-                                className={`aspect-square rounded-md overflow-hidden cursor-pointer border-2 ${index === activeImageIndex ? "border-primary" : "border-transparent"}`}
+                                className={`cursor-pointer border-2 rounded-md overflow-hidden ${
+                                  index === activeImageIndex
+                                    ? "border-primary"
+                                    : "border-transparent"
+                                }`}
                                 onClick={() => setActiveImageIndex(index)}
                               >
                                 <img
-                                  src={img.startsWith("http") ? img : `http://localhost:5000${img}`}
-                                  alt={`Task thumbnail ${index + 1}`}
+                                  src={
+                                    img.startsWith("http")
+                                      ? img
+                                      : `http://localhost:5000${img}`
+                                  }
+                                  alt={`Thumbnail ${index + 1}`}
                                   className="w-full h-full object-cover"
                                 />
                               </div>
@@ -445,66 +438,69 @@ export default function TaskDetailsPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="text-center py-12 bg-muted/30 rounded-lg">
-                        <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">No images have been uploaded</p>
+                      <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <ImageIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500">No images have been uploaded</p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              <TabsContent value="details" className="space-y-4">
-                <Card className="border-none shadow-md">
-                  <CardHeader>
+              <TabsContent value="details" className="space-y-6">
+                <Card className="shadow-md">
+                  <CardHeader className="px-6 pt-6">
                     <CardTitle className="text-xl">Task Details</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 pt-0 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-primary/10 p-2 rounded-md">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-100 p-2 rounded-md">
                           <DollarSign className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Budget</p>
+                          <p className="text-sm text-gray-500">Budget</p>
                           <p className="text-lg font-semibold">${task.budget}</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <div className="bg-primary/10 p-2 rounded-md">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-100 p-2 rounded-md">
                           <Tag className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Category</p>
+                          <p className="text-sm text-gray-500">Category</p>
                           <p className="text-lg font-semibold">{task.category}</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <div className="bg-primary/10 p-2 rounded-md">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-100 p-2 rounded-md">
                           <Clock className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Deadline</p>
-                          <p className="text-lg font-semibold">{formatDate(task.deadline)}</p>
+                          <p className="text-sm text-gray-500">Deadline</p>
+                          <p className="text-lg font-semibold">
+                            {formatDate(task.deadline)}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <div className="bg-primary/10 p-2 rounded-md">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-100 p-2 rounded-md">
                           <Calendar className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Posted On</p>
-                          <p className="text-lg font-semibold">{formatDate(task.createdAt)}</p>
+                          <p className="text-sm text-gray-500">Posted On</p>
+                          <p className="text-lg font-semibold">
+                            {formatDate(task.createdAt)}
+                          </p>
                         </div>
                       </div>
                     </div>
                     {task.location && (
-                      <div className="flex items-start gap-3 mt-4">
-                        <div className="bg-primary/10 p-2 rounded-md">
+                      <div className="flex items-center gap-3 mt-4">
+                        <div className="bg-gray-100 p-2 rounded-md">
                           <MapPin className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Location</p>
+                          <p className="text-sm text-gray-500">Location</p>
                           <p className="text-lg font-semibold">{task.location}</p>
                         </div>
                       </div>
@@ -513,25 +509,25 @@ export default function TaskDetailsPage() {
                       <>
                         <Separator className="my-4" />
                         <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {task.contactEmail && (
-                            <div className="flex items-start gap-3">
-                              <div className="bg-primary/10 p-2 rounded-md">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-gray-100 p-2 rounded-md">
                                 <Mail className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-muted-foreground">Email</p>
+                                <p className="text-sm text-gray-500">Email</p>
                                 <p className="text-lg font-semibold">{task.contactEmail}</p>
                               </div>
                             </div>
                           )}
                           {task.contactPhone && (
-                            <div className="flex items-start gap-3">
-                              <div className="bg-primary/10 p-2 rounded-md">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-gray-100 p-2 rounded-md">
                                 <Phone className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-muted-foreground">Phone</p>
+                                <p className="text-sm text-gray-500">Phone</p>
                                 <p className="text-lg font-semibold">{task.contactPhone}</p>
                               </div>
                             </div>
@@ -544,164 +540,159 @@ export default function TaskDetailsPage() {
               </TabsContent>
             </Tabs>
 
-            {/* Sidebar: Application & Client Info */}
-            <div className="space-y-6">
-              {/* Apply for Task */}
-              <Card className="border-none shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl">Apply for this Task</CardTitle>
-                  <CardDescription>
-                    Send a message to the client explaining why you're a good fit
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6 pt-0">
-                  {applicationSuccess ? (
-                    <Alert className="bg-green-50 text-green-800 border-green-200">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <AlertDescription>
-                        Your application has been submitted successfully!
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <form onSubmit={handleApply} className="space-y-4">
-                      <Textarea
-                        placeholder="Write your message here..."
-                        className="min-h-[150px] resize-none"
-                        value={applicationMessage}
-                        onChange={(e) => setApplicationMessage(e.target.value)}
-                        required
-                      />
-                      <Button type="submit" className="w-full" disabled={isApplying || !applicationMessage.trim()}>
-                        {isApplying ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          "Submit Application"
-                        )}
-                      </Button>
-                    </form>
-                  )}
-                </CardContent>
-              </Card>
+            {/* Task Progress Section */}
+            <Card className="shadow-md">
+              <CardHeader className="px-6 py-4 bg-gray-50">
+                <CardTitle className="text-xl">Task Progress</CardTitle>
+              </CardHeader>
+              <CardContent className="px-6 py-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Applications</span>
+                    <span className="font-semibold">{task.applications?.length || 0}</span>
+                  </div>
+                  <Progress value={Math.min((task.applications?.length || 0) * 10, 100)} className="h-2 rounded-full" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Time Remaining</span>
+                    <span className="font-semibold">
+                      {task.deadline
+                        ? Math.max(0, Math.ceil((new Date(task.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) +
+                          " days"
+                        : "No deadline"}
+                    </span>
+                  </div>
+                  <Progress
+                    value={
+                      task.deadline
+                        ? Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              ((new Date(task.deadline).getTime() - Date.now()) /
+                                (1000 * 60 * 60 * 24 * 30)) *
+                                100
+                            )
+                          )
+                        : 100
+                    }
+                    className="h-2 rounded-full"
+                  />
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4 text-sm">
+                  <p className="font-semibold mb-1">Task Status</p>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(task.status || "open")}
+                    <span className="text-gray-600">
+                      {task.status === "open"
+                        ? "Accepting applications"
+                        : task.status === "in-progress"
+                        ? "Work in progress"
+                        : "Task completed"}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* About the Client */}
-              {task.postedBy && (
-                <Card className="border-none shadow-md">
-                  <CardHeader>
-                    <CardTitle className="text-xl">About the Client</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 pt-0 space-y-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        {task.postedBy.photo ? (
-                          <AvatarImage
-                            src={task.postedBy.photo.startsWith("http") ? task.postedBy.photo : `http://localhost:5000${task.postedBy.photo}`}
-                            alt={task.postedBy.name}
-                          />
-                        ) : (
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {task.postedBy.name ? task.postedBy.name.charAt(0).toUpperCase() : "C"}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{task.postedBy.name || "Client"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {task.postedBy.company ||
-                            "Member since " + formatDate(task.postedBy.createdAt || task.createdAt).split(",")[1]}
-                        </p>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Tasks Posted</p>
-                        <p className="font-medium">{task.postedBy.tasksPosted || "1"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Response Rate</p>
-                        <p className="font-medium">95%</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Avg. Response Time</p>
-                        <p className="font-medium">2 hours</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Last Active</p>
-                        <p className="font-medium">Today</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link href={`/messages/${task.postedBy._id || "new"}?task=${task._id}`}>
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        Contact Client
-                      </Link>
+          {/* Right Sidebar: Application and Client Info */}
+          <aside className="space-y-8">
+            {/* Apply for Task */}
+            <Card className="shadow-md">
+              <CardHeader className="px-6 py-4 bg-gray-50">
+                <CardTitle className="text-xl">Apply for this Task</CardTitle>
+                <CardDescription className="text-sm text-gray-600">
+                  Send a message to the client explaining why you're a good fit.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 py-4">
+                {applicationSuccess ? (
+                  <Alert className="bg-green-50 text-green-800 border-green-200">
+                    <CheckCircle className="h-5 w-5" />
+                    <AlertDescription>
+                      Your application has been submitted successfully!
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <form onSubmit={handleApply} className="space-y-4">
+                    <Textarea
+                      placeholder="Write your message here..."
+                      className="min-h-[150px] resize-none"
+                      value={applicationMessage}
+                      onChange={(e) => setApplicationMessage(e.target.value)}
+                      required
+                    />
+                    <Button type="submit" className="w-full" disabled={isApplying || !applicationMessage.trim()}>
+                      {isApplying ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Application"
+                      )}
                     </Button>
-                  </CardContent>
-                </Card>
-              )}
+                  </form>
+                )}
+              </CardContent>
+            </Card>
 
-              {/* Task Progress */}
-              <Card className="border-none shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl">Task Progress</CardTitle>
+            {/* About the Client */}
+            {task.postedBy && (
+              <Card className="shadow-md">
+                <CardHeader className="px-6 py-4 bg-gray-50">
+                  <CardTitle className="text-xl">About the Client</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 pt-0">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Applications</span>
-                        <span className="font-medium">{task.applications?.length || 0}</span>
-                      </div>
-                      <Progress value={Math.min((task.applications?.length || 0) * 10, 100)} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Time Remaining</span>
-                        <span className="font-medium">
-                          {task.deadline
-                            ? Math.max(0, Math.ceil((new Date(task.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) +
-                              " days"
-                            : "No deadline"}
-                        </span>
-                      </div>
-                      <Progress
-                        value={
-                          task.deadline
-                            ? Math.max(
-                                0,
-                                Math.min(
-                                  100,
-                                  ((new Date(task.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)) * 100
-                                )
-                              )
-                            : 100
-                        }
-                        className="h-2"
-                      />
-                    </div>
-                    <div className="rounded-lg bg-muted/50 p-4 text-sm">
-                      <p className="font-medium mb-1">Task Status</p>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(task.status || "open")}
-                        <span className="text-muted-foreground">
-                          {task.status === "open"
-                            ? "Accepting applications"
-                            : task.status === "in-progress"
-                            ? "Work in progress"
-                            : "Task completed"}
-                        </span>
-                      </div>
+                <CardContent className="px-6 py-4 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      {task.postedBy.photo ? (
+                        <AvatarImage
+                          src={task.postedBy.photo.startsWith("http")
+                            ? task.postedBy.photo
+                            : `http://localhost:5000${task.postedBy.photo}`}
+                          alt={task.postedBy.name}
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-gray-200 text-gray-700">
+                          {task.postedBy.name?.charAt(0).toUpperCase() || "C"}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{task.postedBy.name || "Client"}</p>
                     </div>
                   </div>
+                  <Separator />
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href={`/messages/${task.postedBy._id}?task=${task._id}`}>
+                      <MessageSquare className="mr-2 h-5 w-5" />
+                      Contact Client
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
-            </div>
-          </div>
+            )}
+          </aside>
         </div>
-      </div>
+      </main>
+
+      {/* Popup Message Dialog */}
+      {popUpMessage && (
+        <Dialog open={true} onOpenChange={() => setPopUpMessage(null)}>
+          <DialogContent className="max-w-sm mx-auto p-4">
+            <DialogTitle className="sr-only">Notification</DialogTitle>
+            <div className="text-center">
+              <p className="text-lg">{popUpMessage}</p>
+              <Button variant="outline" className="mt-4" onClick={() => setPopUpMessage(null)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

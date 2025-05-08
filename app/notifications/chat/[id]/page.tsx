@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import jwt from "jsonwebtoken";
@@ -32,15 +32,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Message {
   _id: string;
-  sender: {
-    _id: string;
-    name: string;
-    photo: string;
-  };
+  sender: { _id: string; name: string; photo: string };
   text: string;
   status: "sent" | "delivered" | "read" | "pending";
   timestamp: string;
@@ -50,18 +51,8 @@ interface Message {
 interface Conversation {
   _id: string;
   task: { _id: string; title: string };
-  client: {
-    _id: string;
-    name: string;
-    photo: string;
-    online?: boolean;
-  };
-  freelancer: {
-    _id: string;
-    name: string;
-    photo: string;
-    online?: boolean;
-  };
+  client: { _id: string; name: string; photo: string; online?: boolean };
+  freelancer: { _id: string; name: string; photo: string; online?: boolean };
   messages: Message[];
 }
 
@@ -81,20 +72,21 @@ const decodeToken = (token: string): DecodedToken | null => {
 };
 
 export default function ChatPage() {
-  const { id } = useParams();
+  const { id } = useParams(); // conversation id
   const router = useRouter();
-
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  // Set current user by decoding JWT from localStorage.
   const [currentUser, setCurrentUser] = useState<DecodedToken | null>(null);
+
+  // Helper: Check if a message is sent by current user.
+  const isCurrentUserMessage = (senderId: string): boolean =>
+    currentUser ? currentUser._id === senderId : false;
+
+  // Decode token on mount.
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -105,23 +97,14 @@ export default function ChatPage() {
     }
   }, []);
 
-  // Helper: Identify if a message is sent by current user.
-  const isCurrentUserMessage = useCallback(
-    (senderId: string) => (currentUser ? currentUser._id === senderId : false),
-    [currentUser]
-  );
-
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Initialize socket connection.
+  // Initialize socket.
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("No token found in localStorage.");
-      return;
-    }
+    if (!token) return;
     const newSocket = io("http://localhost:5000", {
       auth: { token },
     });
@@ -174,22 +157,23 @@ export default function ChatPage() {
           `http://localhost:5000/api/conversations/${id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        const updatedConversation = {
+        const conv: Conversation = {
           ...response.data,
           messages: response.data.messages.map((msg: Message) => ({
             ...msg,
-            sender: { ...msg.sender, _id: msg.sender._id.toString() }
-          }))
+            sender: { ...msg.sender, _id: msg.sender._id.toString() },
+          })),
         };
-        setConversation(updatedConversation);
-        if (socket && currentUser) {
-          const unreadMessages = updatedConversation.messages
-            .filter((msg: Message) => msg.status !== "read" && msg.sender._id !== currentUser._id)
-            .map((msg: Message) => msg._id);
-          if (unreadMessages.length > 0) {
-            socket.emit("markAsRead", unreadMessages);
-          }
+        // If the conversation contains exactly one message and it is from the freelancer,
+        // then consider it as the freelancer's application message and remove it.
+        if (
+          conv.messages.length === 1 &&
+          currentUser &&
+          !isCurrentUserMessage(conv.messages[0].sender._id)
+        ) {
+          conv.messages = [];
         }
+        setConversation(conv);
       } catch (error) {
         console.error("Error fetching conversation:", error);
       } finally {
@@ -199,7 +183,7 @@ export default function ChatPage() {
     if (currentUser) {
       fetchConversation();
     }
-  }, [id, socket, currentUser]);
+  }, [id, socket, currentUser, isCurrentUserMessage]);
 
   useEffect(() => {
     scrollToBottom();
@@ -242,8 +226,8 @@ export default function ChatPage() {
     }
   };
 
-  const getOtherUser = (conversation: Conversation) => {
-    return conversation.client._id === currentUser?._id ? conversation.freelancer : conversation.client;
+  const getOtherUser = (conv: Conversation) => {
+    return conv.client._id === currentUser?._id ? conv.freelancer : conv.client;
   };
 
   const formatMessageDate = (date: Date) => {
@@ -303,29 +287,9 @@ export default function ChatPage() {
   if (loading || !conversation) {
     return (
       <div className="flex h-screen bg-white dark:bg-gray-900">
-        <div className="flex-1 flex flex-col">
-          <div className="p-4 border-b dark:border-gray-700 flex items-center gap-4 bg-[#075E54] dark:bg-gray-800 text-white">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <Skeleton className="h-10 w-10 rounded-full bg-white/20" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-[150px] bg-white/20" />
-              <Skeleton className="h-3 w-[100px] bg-white/20" />
-            </div>
-          </div>
-          <div className="flex-1 p-4 space-y-4 bg-[#E4DDD6] dark:bg-gray-900">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
-                <Skeleton className={`h-16 w-2/3 rounded-lg ${i % 2 === 0 ? "bg-[#DCF8C6]/50" : "bg-white/50"}`} />
-              </div>
-            ))}
-          </div>
-          <div className="p-4 border-t dark:border-gray-700 bg-[#F0F2F5] dark:bg-gray-800 flex gap-2">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <Skeleton className="h-10 flex-1 rounded-full" />
-            <Skeleton className="h-10 w-10 rounded-full" />
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4">Loading Conversation...</p>
         </div>
       </div>
     );
@@ -440,8 +404,8 @@ export default function ChatPage() {
             </Button>
           </div>
         )}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6">
-          {messageGroups.map((group, groupIndex) => (
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {groupMessagesByDate(conversation.messages).map((group, groupIndex) => (
             <div key={groupIndex} className="space-y-4">
               <div className="flex justify-center">
                 <Badge variant="outline" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-sm">
@@ -458,9 +422,7 @@ export default function ChatPage() {
                       <div className={`p-3 rounded-lg ${isStartOfCluster ? "rounded-tr-md" : "rounded-tr-xl"} bg-[#DCF8C6] dark:bg-[#005C4B] text-black dark:text-white`}>
                         <p className="text-sm whitespace-pre-line">{msg.text}</p>
                         <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-                          <span>
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
+                          <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                           {getMessageStatusIcon(msg.status)}
                         </div>
                       </div>
@@ -487,32 +449,15 @@ export default function ChatPage() {
                       <div className={`p-3 rounded-lg ${isStartOfCluster ? "rounded-tl-md" : "rounded-tl-xl"} bg-white dark:bg-gray-800 text-black dark:text-white`}>
                         <p className="text-sm whitespace-pre-line">{msg.text}</p>
                         <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-                          <span>
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
+                          <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           ))}
-          {isTyping && (
-            <div className="flex items-start gap-2">
-              <Avatar className="h-8 w-8 mr-1">
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {otherUser.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg rounded-bl-none shadow-sm max-w-[75%]">
-                <div className="flex space-x-1">
-                  
-                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div>
-                </div>
-              </div>
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
         <form onSubmit={handleSendMessage} className="bg-[#F0F2F5] dark:bg-gray-800 p-3 flex items-center gap-2">

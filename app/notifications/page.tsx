@@ -2,15 +2,32 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
-import { io, Socket } from "socket.io-client";
-import { Loader2, Search, MessageCirclePlus } from "lucide-react";
+import { Search, MessageCirclePlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Helper to get current user id from JWT in localStorage or from a fallback "userId" item.
+const getCurrentUserId = (): string => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    try {
+      // Decode the payload of the JWT.
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      // Look for common properties for the user id.
+      return payload._id || payload.id || payload.sub || "";
+    } catch (error) {
+      console.error("Error decoding JWT:", error);
+    }
+  }
+  // Fallback to using a stored userId if available.
+  return localStorage.getItem("userId") || "";
+};
 
 interface Conversation {
   _id: string;
@@ -29,7 +46,7 @@ interface Conversation {
   };
   messages: Array<{
     _id: string;
-    sender: { _id: string; name: string };
+    sender: { _id: string; name?: string };
     text: string;
     status: "sent" | "delivered" | "read";
     timestamp: string;
@@ -41,18 +58,13 @@ export default function NotificationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const storedUserId = typeof window !== "undefined" ? localStorage.getItem("userId") : "";
-  const currentUserId = storedUserId ? storedUserId.toString() : "";
+  const [currentUserId, setCurrentUserId] = useState("");
+  const router = useRouter();
 
+  // Update current user id using the helper (with fallback) on mount.
   useEffect(() => {
-    const newSocket = io("http://localhost:5000", {
-      auth: { token: localStorage.getItem("token") },
-    });
-    setSocket(newSocket);
-    return () => {
-      newSocket.disconnect();
-    };
+    const id = getCurrentUserId();
+    setCurrentUserId(id);
   }, []);
 
   useEffect(() => {
@@ -69,54 +81,10 @@ export default function NotificationsPage() {
         setLoading(false);
       }
     };
-    fetchConversations();
-  }, []);
-
-  useEffect(() => {
-    if (!socket) return;
-    socket.on("message", (incomingMessage: any) => {
-      setConversations((prev) =>
-        prev.map((convo) => {
-          if (convo._id === incomingMessage.conversationId) {
-            return {
-              ...convo,
-              messages: [...convo.messages, incomingMessage],
-              unreadCount:
-                String(incomingMessage.sender._id) !== currentUserId
-                  ? convo.unreadCount + 1
-                  : convo.unreadCount,
-            };
-          }
-          return convo;
-        })
-      );
-    });
-
-    socket.on("messageStatus", ({ messageId, status }) => {
-      setConversations((prev) =>
-        prev.map((convo) => ({
-          ...convo,
-          messages: convo.messages.map((msg) =>
-            msg._id === messageId ? { ...msg, status } : msg
-          ),
-        }))
-      );
-    });
-
-    return () => {
-      socket.off("message");
-      socket.off("messageStatus");
-    };
-  }, [socket, currentUserId]);
-
-  // Determine the conversation partner by comparing the current user ID with the client ID.
-  const getOtherUser = (conversation: Conversation) => {
-    return String(conversation.client._id) === currentUserId
-      ? conversation.freelancer:
-      (String(conversation.freelancer._id) === currentUserId
-      ? conversation.freelancer
-      : conversation.client) ;
-  };
+    if (currentUserId) {
+      fetchConversations();
+    }
+  }, [currentUserId]);
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -124,6 +92,19 @@ export default function NotificationsPage() {
     return date.toDateString() === now.toDateString()
       ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const getDisplayedSenderName = (lastMessage: Conversation["messages"][0] | undefined): string => {
+    if (!lastMessage) return "";
+    const messageSenderId = String(lastMessage.sender._id || "");
+    // Use strict string comparison between sender id and current user id.
+    if (messageSenderId === String(currentUserId)) {
+      return "you";
+    }
+    // When the sender's name is missing or empty, default to "unknown".
+    return lastMessage.sender.name && lastMessage.sender.name.trim().length > 0
+      ? lastMessage.sender.name
+      : "unknown";
   };
 
   return (
@@ -164,8 +145,19 @@ export default function NotificationsPage() {
           <ScrollArea className="flex-1">
             <div className="divide-y dark:divide-gray-700">
               {conversations.map((conversation) => {
-                const otherUser = getOtherUser(conversation);
+                // Determine the other user based on the current user's id.
+                const otherUser =
+                  String(conversation.client._id) === currentUserId
+                    ? conversation.freelancer
+                    : conversation.client;
                 const lastMessage = conversation.messages[conversation.messages.length - 1];
+
+                let displayedMessage = "No messages yet";
+                if (lastMessage) {
+                  const senderName = getDisplayedSenderName(lastMessage);
+                  displayedMessage = `${senderName} : ${lastMessage.text}`;
+                }
+
                 return (
                   <Link
                     key={conversation._id}
@@ -199,9 +191,11 @@ export default function NotificationsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground line-clamp-1">
-                          {lastMessage?.text || "No messages yet"}
+                          {displayedMessage}
                         </p>
-                        {conversation.unreadCount > 0 && <Badge className="ml-2">{conversation.unreadCount}</Badge>}
+                        {conversation.unreadCount > 0 && (
+                          <Badge className="ml-2">{conversation.unreadCount}</Badge>
+                        )}
                       </div>
                     </div>
                   </Link>
