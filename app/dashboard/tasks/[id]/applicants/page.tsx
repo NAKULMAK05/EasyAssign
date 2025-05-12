@@ -203,7 +203,8 @@ export default function ApplicantsPage() {
 
   // Navigate to applicant profile page.
   const handleProfileView = (applicantId: string) => {
-    router.push(`/app/dashboard/profile/${applicantId}/page`);
+    // Redirect client to the applicant's profile page at /dashboard/profile/[id]
+    router.push(`/dashboard/profile/${applicantId}`);
   };
 
   // Handlers for search and filter controls.

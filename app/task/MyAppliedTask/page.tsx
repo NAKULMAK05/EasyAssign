@@ -1,11 +1,26 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { Loader2, ChevronDown, Filter, Calendar, Search, AlertCircle, X } from "lucide-react";
+import {
+  Loader2,
+  ChevronDown,
+  Filter,
+  Calendar,
+  Search,
+  AlertCircle,
+  X
+} from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +29,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -49,8 +70,13 @@ export interface Task {
 }
 
 // Extend Task locally to add a temporary _decision property for filtering/sorting.
+// Here, we use the following logic for the freelancer's view:
+// - "pending": if the client has assigned him the task (i.e. acceptedBy matches current user)
+//              OR if no client action has been taken.
+// - "rejected": if the client's decision for the application is "declined".
+// - "completed": if the task status is "completed".
 interface ExtendedTask extends Task {
-  _decision: "pending" | "accepted" | "rejected";
+  _decision: "pending" | "rejected" | "completed";
 }
 
 export default function MyAppliedTasks() {
@@ -61,7 +87,7 @@ export default function MyAppliedTasks() {
   const [searchTerm, setSearchTerm] = useState("");
   // "recent", "titleAsc", "titleDesc", "budgetHigh", "budgetLow"
   const [sortOption, setSortOption] = useState("recent");
-  // statusFilter values: "all", "pending", "accepted", "rejected"
+  // statusFilter values: "all", "pending", "rejected", "completed"
   const [statusFilter, setStatusFilter] = useState("all");
   const [withdrawingTaskId, setWithdrawingTaskId] = useState<string | null>(null);
   const [confirmWithdrawTaskId, setConfirmWithdrawTaskId] = useState<string | null>(null);
@@ -69,14 +95,14 @@ export default function MyAppliedTasks() {
 
   const router = useRouter();
 
-  // Fetch tasks the freelancer has applied to
+  // Fetch tasks the freelancer has applied to.
   const fetchAppliedTasks = async () => {
     setIsLoading(true);
     setError("");
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get("http://localhost:5000/api/tasks/applied", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(res.data.tasks);
     } catch (err: any) {
@@ -90,21 +116,20 @@ export default function MyAppliedTasks() {
     fetchAppliedTasks();
   }, []);
 
-  // Filter and sort tasks
+  // Filter and sort tasks.
   useEffect(() => {
-    // Ensure we trim the user id from localStorage to avoid stray spaces.
     const userId = localStorage.getItem("userId")?.trim() || "";
     let updatedTasks: ExtendedTask[] = tasks.map((task) => {
-      // Find user's application in this task
+      // Find the current user's application in this task.
       const userApplication = task.applications?.find(
         (app) => app.applicant === userId
       );
-      let decision: "pending" | "accepted" | "rejected" = "pending";
-      // Check if the task is officially assigned to current user
-      if (task.acceptedBy && task.acceptedBy.toString() === userId) {
-        decision = "accepted";
-      } else if (userApplication?.decision === "accepted") {
-        decision = "accepted";
+      let decision: "pending" | "rejected" | "completed" = "pending";
+      if (task.status === "completed") {
+        decision = "completed";
+      } else if (task.acceptedBy && task.acceptedBy.toString() === userId) {
+        // If the client has assigned the freelancer, we show "pending" status.
+        decision = "pending";
       } else if (userApplication?.decision === "declined") {
         decision = "rejected";
       } else {
@@ -113,22 +138,25 @@ export default function MyAppliedTasks() {
       return { ...task, _decision: decision };
     });
 
-    // Apply status filter if not "all"
+    // Apply status filter if not "all".
     if (statusFilter !== "all") {
-      updatedTasks = updatedTasks.filter(task => task._decision === statusFilter);
-    }
-    
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const term = searchTerm.trim().toLowerCase();
-      updatedTasks = updatedTasks.filter(task =>
-        task.title.toLowerCase().includes(term) ||
-        task.description.toLowerCase().includes(term) ||
-        task.category.toLowerCase().includes(term)
+      updatedTasks = updatedTasks.filter(
+        (task) => task._decision === statusFilter
       );
     }
-    
-    // Apply sorting
+
+    // Apply search filter.
+    if (searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      updatedTasks = updatedTasks.filter(
+        (task) =>
+          task.title.toLowerCase().includes(term) ||
+          task.description.toLowerCase().includes(term) ||
+          task.category.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply sorting.
     if (sortOption === "recent") {
       updatedTasks.sort((a, b) =>
         new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
@@ -139,36 +167,53 @@ export default function MyAppliedTasks() {
       updatedTasks.sort((a, b) => b.title.localeCompare(a.title));
     } else if (sortOption === "budgetHigh") {
       updatedTasks.sort((a, b) => {
-        const budgetA = typeof a.budget === "string" ? parseFloat(a.budget.replace(/[^0-9.-]+/g, "")) : Number(a.budget);
-        const budgetB = typeof b.budget === "string" ? parseFloat(b.budget.replace(/[^0-9.-]+/g, "")) : Number(b.budget);
+        const budgetA =
+          typeof a.budget === "string"
+            ? parseFloat(a.budget.replace(/[^0-9.-]+/g, ""))
+            : Number(a.budget);
+        const budgetB =
+          typeof b.budget === "string"
+            ? parseFloat(b.budget.replace(/[^0-9.-]+/g, ""))
+            : Number(b.budget);
         return budgetB - budgetA;
       });
     } else if (sortOption === "budgetLow") {
       updatedTasks.sort((a, b) => {
-        const budgetA = typeof a.budget === "string" ? parseFloat(a.budget.replace(/[^0-9.-]+/g, "")) : Number(a.budget);
-        const budgetB = typeof b.budget === "string" ? parseFloat(b.budget.replace(/[^0-9.-]+/g, "")) : Number(b.budget);
+        const budgetA =
+          typeof a.budget === "string"
+            ? parseFloat(a.budget.replace(/[^0-9.-]+/g, ""))
+            : Number(a.budget);
+        const budgetB =
+          typeof b.budget === "string"
+            ? parseFloat(b.budget.replace(/[^0-9.-]+/g, ""))
+            : Number(b.budget);
         return budgetA - budgetB;
       });
     }
-    
+
     setFilteredTasks(updatedTasks);
   }, [searchTerm, sortOption, statusFilter, tasks]);
 
-  // Function to withdraw application
+  // Function to withdraw an application.
   const withdrawApplication = async (taskId: string) => {
     try {
       setWithdrawingTaskId(taskId);
       const token = localStorage.getItem("token");
       await axios.delete(`http://localhost:5000/api/tasks/${taskId}/apply`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
-      // Remove the withdrawn task from the list
-      setTasks(prevTasks => prevTasks.filter(task => task._id !== taskId));
+      // Remove the withdrawn task from the list.
+      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
     } catch (error: any) {
-      if (error.response?.data?.message && error.response.data.message.includes("already assigned")) {
+      if (
+        error.response?.data?.message &&
+        error.response.data.message.includes("already assigned")
+      ) {
         setWithdrawErrorDialog(error.response.data.message);
       } else {
-        setWithdrawErrorDialog(error.response?.data?.message || "Failed to withdraw application");
+        setWithdrawErrorDialog(
+          error.response?.data?.message || "Failed to withdraw application"
+        );
       }
     } finally {
       setWithdrawingTaskId(null);
@@ -176,31 +221,39 @@ export default function MyAppliedTasks() {
     }
   };
 
-  // Format date for display
+  // Format date for display.
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
-      day: "numeric",
+      day: "numeric"
     });
   };
 
-  // Get status badge based on application decision
+  // Get status badge based on application decision.
+  // Per requirements, this function shows:
+  // - "Pending" if the client has assigned him the task (i.e. task.acceptedBy matches current user) or if no action was taken.
+  // - "Rejected" if the client has rejected the freelancer.
+  // - "Completed" if the client has marked the task as completed.
   const getStatusBadge = (decision: string) => {
     switch (decision) {
-      case "accepted":
-        return <Badge className="bg-green-500 text-white">Accepted</Badge>;
+      case "completed":
+        return <Badge className="bg-gray-500 text-white">Completed</Badge>;
       case "rejected":
         return <Badge className="bg-red-500 text-white">Rejected</Badge>;
       case "pending":
       default:
-        return <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">Pending</Badge>;
+        return (
+          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+            Pending
+          </Badge>
+        );
     }
   };
 
-  // Calculate days remaining until deadline
+  // Calculate days remaining until deadline.
   const getDaysRemaining = (deadline: string) => {
     const deadlineDate = new Date(deadline);
     const today = new Date();
@@ -254,7 +307,7 @@ export default function MyAppliedTasks() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Applied Tasks</h1>
-          <p className="text-muted-foreground mt-1">Track and manage tasks you&apos;ve applied for</p>
+          <p className="text-muted-foreground mt-1">Track and manage tasks you've applied for</p>
         </div>
         <Button asChild variant="outline" className="self-start">
           <Link href="/dashboard">
@@ -295,6 +348,7 @@ export default function MyAppliedTasks() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="accepted">Accepted</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sortOption} onValueChange={setSortOption}>
@@ -331,20 +385,16 @@ export default function MyAppliedTasks() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTasks.map((task) => {
-            const decision = task._decision;
-            const userApplication = task.applications?.find(
-              (app) => app.applicant === localStorage.getItem("userId")?.trim()
-            );
             return (
               <Card key={task._id} className="overflow-hidden transition-all hover:shadow-md">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-xl line-clamp-1">{task.title}</CardTitle>
-                    {getStatusBadge(decision)}
+                    {getStatusBadge(task._decision)}
                   </div>
                   <CardDescription className="flex items-center gap-2 mt-1">
                     <Calendar className="h-3.5 w-3.5" />
-                    Applied on {formatDate(userApplication?.appliedAt || "")}
+                    Applied on {formatDate(task.applications?.[0]?.appliedAt || "")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pb-3">
@@ -379,14 +429,17 @@ export default function MyAppliedTasks() {
                   {task.client && (
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={task.client.photo || "/placeholder.svg"} alt={task.client.name} />
+                        <AvatarImage
+                          src={task.client.photo || "/placeholder.svg"}
+                          alt={task.client.name}
+                        />
                         <AvatarFallback>{task.client.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm text-muted-foreground">{task.client.name}</span>
                     </div>
                   )}
                   <div className="flex gap-2">
-                    {decision === "pending" && (
+                    {task._decision === "pending" && (
                       <Button
                         variant="destructive"
                         size="sm"

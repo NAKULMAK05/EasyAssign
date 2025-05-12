@@ -1,70 +1,107 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import axios from "axios"
-import { LucideUser, Phone, School, Briefcase, Mail, MapPin, Calendar, Github, Linkedin, Globe, ArrowLeft, MessageSquare, Share2, Loader2 } from 'lucide-react'
-import { Skeleton } from "@/components/ui/skeleton"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+"use client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import axios from "axios";
+import {
+  LucideUser,
+  Phone,
+  School,
+  Briefcase,
+  Mail,
+  MapPin,
+  Calendar,
+  Github,
+  Linkedin,
+  Globe,
+  ArrowLeft,
+  Share2,
+  Loader2
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface User {
-  _id: string
-  name: string
-  photo: string
-  email?: string
-  phone?: string
-  college?: string
-  bio?: string
-  linkedIn?: string
-  github?: string
-  skills?: string[]
-  role?: string
-  location?: string
-  joinedDate?: string
-  company?: string
-  website?: string
+  _id: string;
+  name: string;
+  photo: string;
+  email?: string;
+  phone?: string;
+  college?: string;
+  bio?: string;
+  linkedIn?: string;
+  github?: string;
+  skills?: string[];
+  role?: string;
+  location?: string;
+  joinedDate?: string;
+  company?: string;
+  website?: string;
 }
 
 export default function ProfilePage() {
-  const { id } = useParams()
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const { id } = useParams() as { id: string };
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
+  // Get current user ID from localStorage.
   useEffect(() => {
-    // Get current user ID from localStorage
     if (typeof window !== "undefined") {
-      setCurrentUserId(localStorage.getItem("userId"))
+      const storedUserId = localStorage.getItem("userId") || "";
+      setCurrentUserId(storedUserId);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // Updated API call: use an endpoint to fetch user details by id.
-        // Ensure your backend supports this route e.g. GET /api/users/:id
-        const token = localStorage.getItem("token")
+        // Ensure your backend endpoint returns user details for GET /api/users/:id
+        const token = localStorage.getItem("token");
         const response = await axios.get(`http://localhost:5000/api/users/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        setUser(response.data)
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(response.data);
       } catch (error) {
-        console.error("Error fetching user profile:", error)
+        console.error("Error fetching user profile:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [id]);
+
+  // Since the user is always logged in, we assume currentUserId is always set.
+  const isOwnProfile = currentUserId === id;
+
+  // Share button functionality: uses navigator.share if available; otherwise copies URL to clipboard.
+  const handleShareProfile = async () => {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${user?.name}'s Profile`,
+          text: `Check out ${user?.name}'s profile on our platform.`,
+          url: shareUrl
+        });
+      } catch (error) {
+        console.error("Error sharing profile:", error);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("Profile URL copied to clipboard");
+      } catch (error) {
+        console.error("Error copying to clipboard:", error);
       }
     }
-
-    fetchUser()
-  }, [id])
-
-  const isOwnProfile = currentUserId === id
+  };
 
   if (loading) {
     return (
@@ -74,7 +111,6 @@ export default function ProfilePage() {
             <Skeleton className="h-10 w-10 rounded-full" />
             <Skeleton className="h-8 w-40" />
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
               <Card>
@@ -96,7 +132,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </div>
-            
             <div className="md:col-span-2">
               <Card>
                 <CardHeader>
@@ -116,7 +151,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
@@ -126,7 +161,9 @@ export default function ProfilePage() {
           <CardContent className="pt-6 text-center">
             <LucideUser className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-2xl font-bold mb-2">User Not Found</h2>
-            <p className="text-muted-foreground mb-6">The user profile you're looking for doesn't exist or has been removed.</p>
+            <p className="text-muted-foreground mb-6">
+              The user profile you're looking for doesn't exist or has been removed.
+            </p>
             <Button onClick={() => router.back()}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Go Back
@@ -134,7 +171,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -156,7 +193,7 @@ export default function ProfilePage() {
               {/* Cover Photo */}
               <div className="h-24 bg-gradient-to-r from-blue-500 to-purple-500" />
               
-              <CardContent className="pt-0 relative">
+              <CardHeader className="pt-0 relative">
                 <div className="flex flex-col items-center">
                   {/* Avatar - positioned to overlap the cover photo */}
                   <Avatar className="h-24 w-24 border-4 border-background -mt-12 mb-3">
@@ -164,19 +201,18 @@ export default function ProfilePage() {
                       src={user.photo?.startsWith("http") ? user.photo : `http://localhost:5000${user.photo}`}
                       alt={user.name}
                     />
-                    <AvatarFallback className="text-xl">{user.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="text-xl">
+                      {user.name.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   
                   <h2 className="text-xl font-bold text-center">{user.name}</h2>
                   <p className="text-sm text-muted-foreground mb-2">{user.role || "User"}</p>
                   
+                  {/* Share button, shown only if this is not the client's own profile */}
                   {!isOwnProfile && (
                     <div className="flex gap-2 mt-2 mb-4">
-                      <Button size="sm" className="flex-1">
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        Message
-                      </Button>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" onClick={handleShareProfile}>
                         <Share2 className="h-4 w-4" />
                         <span className="sr-only">Share</span>
                       </Button>
@@ -216,7 +252,9 @@ export default function ProfilePage() {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Joined:</span>
-                      <span className="font-medium">{new Date(user.joinedDate).toLocaleDateString()}</span>
+                      <span className="font-medium">
+                        {new Date(user.joinedDate).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -252,7 +290,7 @@ export default function ProfilePage() {
                     </Button>
                   )}
                 </div>
-              </CardContent>
+              </CardHeader>
             </Card>
 
             {/* Education & Work */}
@@ -305,9 +343,13 @@ export default function ProfilePage() {
                   </CardHeader>
                   <CardContent>
                     {user.bio ? (
-                      <p className="text-sm leading-relaxed whitespace-pre-line">{user.bio}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-line">
+                        {user.bio}
+                      </p>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">No bio provided</p>
+                      <p className="text-sm text-muted-foreground italic">
+                        No bio provided
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -328,7 +370,9 @@ export default function ProfilePage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">No skills listed</p>
+                      <p className="text-sm text-muted-foreground italic">
+                        No skills listed
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -361,8 +405,13 @@ export default function ProfilePage() {
                     <p className="text-sm text-muted-foreground">Website</p>
                     <p className="font-medium">
                       {user.website ? (
-                        <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                          {user.website.replace(/^https?:\/\//, '')}
+                        <a
+                          href={user.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {user.website.replace(/^https?:\/\//, "")}
                         </a>
                       ) : (
                         "Not provided"
@@ -376,5 +425,5 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
