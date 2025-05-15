@@ -15,7 +15,8 @@ import {
   Globe,
   ArrowLeft,
   Share2,
-  Loader2
+  Loader2,
+  Check
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,6 +42,7 @@ interface User {
   joinedDate?: string;
   company?: string;
   website?: string;
+  isEmailVerified?: boolean;
 }
 
 export default function ProfilePage() {
@@ -206,7 +208,17 @@ export default function ProfilePage() {
                     </AvatarFallback>
                   </Avatar>
                   
-                  <h2 className="text-xl font-bold text-center">{user.name}</h2>
+                  <div className="flex items-center">
+  <h2 className="text-xl font-bold text-center">{user.name}</h2>
+  {user.isEmailVerified && (
+    <div
+      className="ml-2 flex items-center justify-center rounded-full bg-green-100 p-1 shadow-md"
+      title="Verified"
+    >
+      <Check className="h-5 w-5 text-green-600" />
+    </div>
+  )}
+</div>
                   <p className="text-sm text-muted-foreground mb-2">{user.role || "User"}</p>
                   
                   {/* Share button, shown only if this is not the client's own profile */}

@@ -8,10 +8,7 @@ import { Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GoogleLogin } from "@react-oauth/google";
 
@@ -21,20 +18,22 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [googleCredential, setGoogleCredential] = useState<string | null>(null);
   const [showRolePopup, setShowRolePopup] = useState(false);
+  const [showForgotPopup, setShowForgotPopup] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [error, setError] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState("");
 
-  // Handle traditional email/password login.
+  // Handle email/password login.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-
     try {
       const response = await axios.post("http://localhost:5000/api/auth/login", {
         email,
-        password,
+        password: loginPassword,
       });
       localStorage.setItem("token", response.data.token);
       router.push(response.data.redirectTo || "/dashboard");
@@ -45,17 +44,45 @@ export default function LoginPage() {
     }
   };
 
-  // On successful Google login, save the token and show role selection popup.
-  const handleGoogleSuccess = (tokenResponse: any) => {
-    setGoogleCredential(tokenResponse.credential);
-    setShowRolePopup(true);
+  // Handle Google login.
+  // If the backend indicates that the user already exists (firstTime === false),
+  // immediately redirect to dashboard. Otherwise, store the Google token and show the role selection popup.
+  const handleGoogleSuccess = async (tokenResponse: any) => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/google", {
+        tokenId: tokenResponse.credential,
+      });
+      // If not a first-time user, login directly to dashboard.
+      if (!response.data.firstTime) {
+        localStorage.setItem("token", response.data.token);
+        router.push(response.data.redirectTo || "/dashboard");
+      } else {
+        // New user: prompt for role selection.
+        setGoogleCredential(tokenResponse.credential);
+        setShowRolePopup(true);
+      }
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || "";
+      // If backend returns error specifically asking for role, show popup.
+      if (errMsg === "Role is required. Please select 'student' or 'freelancer'.") {
+        setGoogleCredential(tokenResponse.credential);
+        setShowRolePopup(true);
+      } else {
+        setError(errMsg || "Google sign in failed");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleError = () => {
     setError("Google sign in was unsuccessful. Please try again.");
   };
 
-  // When user selects a role from the popup, call our API with token and role.
+  // When user selects a role, call the API with role and then redirect accordingly.
+  // For new users, the chosen role will determine the complete profile path.
   const handleRoleSelect = async (role: string) => {
     if (!googleCredential) return;
     setIsLoading(true);
@@ -67,11 +94,33 @@ export default function LoginPage() {
       });
       localStorage.setItem("token", response.data.token);
       setShowRolePopup(false);
-      router.push(response.data.redirectTo || "/dashboard");
+      if (role === "freelancer") {
+        router.push("/complete-freelancer-profile");
+      } else if (role === "student") {
+        router.push("/complete-user-profile");
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Google sign in failed");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle forgot password flow.
+  const handleForgotPassword = async () => {
+    setError("");
+    setForgotSuccess("");
+    if (!forgotEmail) {
+      setError("Please enter your email address");
+      return;
+    }
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/forgot-password", {
+        email: forgotEmail,
+      });
+      setForgotSuccess(response.data.message);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Something went wrong");
     }
   };
 
@@ -120,12 +169,13 @@ export default function LoginPage() {
                   <Label htmlFor="password" className="text-sm font-medium">
                     Password
                   </Label>
-                  <Link
-                    href="/forgot-password"
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPopup(true)}
                     className="text-xs text-primary hover:underline font-medium"
                   >
                     Forgot password?
-                  </Link>
+                  </button>
                 </div>
                 <div className="relative">
                   <Input
@@ -134,8 +184,8 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     required
                     className="h-12 px-4 pr-10"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                   />
                   <button
                     type="button"
@@ -221,7 +271,7 @@ export default function LoginPage() {
         </Card>
       </div>
 
-      {/* Role selection modal popup */}
+      {/* Role selection modal popup shown only for first-time Google logins */}
       {showRolePopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 w-80">
@@ -229,7 +279,7 @@ export default function LoginPage() {
               Choose your role
             </h2>
             <p className="mb-4 text-center">
-              Please select whether you want to login as a student or freelancer.
+              Please select whether you want to sign up as a student or freelancer.
             </p>
             <div className="flex justify-around">
               <Button onClick={() => handleRoleSelect("student")}>
@@ -246,6 +296,55 @@ export default function LoginPage() {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot password modal popup */}
+      {showForgotPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 w-80">
+            <h2 className="text-xl font-bold mb-4 text-center">Forgot Password?</h2>
+            <p className="mb-4 text-center">
+              Please enter your email address to receive a password reset link.
+            </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgotEmail" className="text-sm font-medium">
+                  Email address
+                </Label>
+                <Input
+                  id="forgotEmail"
+                  type="email"
+                  placeholder="name@example.com"
+                  required
+                  className="h-12 px-4"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+              </div>
+              {forgotSuccess && (
+                <Alert variant="default">
+                  <AlertDescription>{forgotSuccess}</AlertDescription>
+                </Alert>
+              )}
+              <Button onClick={handleForgotPassword} className="w-full">
+                Send Reset Link
+              </Button>
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="text-sm text-gray-500 hover:underline"
+                  onClick={() => {
+                    setShowForgotPopup(false);
+                    setForgotEmail("");
+                    setForgotSuccess("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

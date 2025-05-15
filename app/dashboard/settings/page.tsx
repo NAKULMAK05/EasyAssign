@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { useRouter } from "next/navigation"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { AlertCircle, Bell, Globe, Lock, LogOut, Trash2, User, Loader2, AlertTriangle } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { AlertCircle, Bell, Globe, Lock, LogOut, Trash2, User, Loader2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -19,53 +19,62 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 export default function SettingsPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [deleteConfirmation, setDeleteConfirmation] = useState("")
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Settings states
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [pushNotifications, setPushNotifications] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
-  const [twoFactorAuth, setTwoFactorAuth] = useState(false)
-  const [profileVisibility, setProfileVisibility] = useState("public")
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [twoFactorAuth, setTwoFactorAuth] = useState(false);
+  const [profileVisibility, setProfileVisibility] = useState("public");
+
+  // Two-factor authentication states
+  const [tfaEnabled, setTfaEnabled] = useState(false);
+  const [tfaSecret, setTfaSecret] = useState("");
+  const [tfaToken, setTfaToken] = useState("");
+
+  // Email verification state
+  const [emailVerified, setEmailVerified] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
       try {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("token");
         const response = await axios.get("http://localhost:5000/api/users/profile", {
           headers: { Authorization: `Bearer ${token}` },
-        })
-        setUser(response.data)
+        });
+        setUser(response.data);
+        setEmailVerified(response.data.isEmailVerified);
 
-        // Set initial settings based on user data
         if (response.data.settings) {
-          setEmailNotifications(response.data.settings.emailNotifications ?? true)
-          setPushNotifications(response.data.settings.pushNotifications ?? true)
-          setDarkMode(response.data.settings.darkMode ?? false)
-          setTwoFactorAuth(response.data.settings.twoFactorAuth ?? false)
-          setProfileVisibility(response.data.settings.profileVisibility ?? "public")
+          setEmailNotifications(response.data.settings.emailNotifications ?? true);
+          setPushNotifications(response.data.settings.pushNotifications ?? true);
+          setDarkMode(response.data.settings.darkMode ?? false);
+          setTwoFactorAuth(response.data.settings.twoFactorAuth ?? false);
+          setProfileVisibility(response.data.settings.profileVisibility ?? "public");
         }
+        setTfaEnabled(response.data.twoFactorEnabled || false);
       } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to load profile")
+        setError(err.response?.data?.message || "Failed to load profile");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-    fetchUser()
-  }, [])
+    fetchUser();
+  }, []);
 
   const handleSaveSettings = async () => {
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       await axios.put(
         "http://localhost:5000/api/users/settings",
         {
@@ -77,39 +86,90 @@ export default function SettingsPage() {
         },
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
-      )
-      // Show success message
+        }
+      );
+      // Optionally, display a success notification.
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to save settings")
+      setError(err.response?.data?.message || "Failed to save settings");
     }
-  }
+  };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmation !== "DELETE") {
-      return
-    }
+    if (deleteConfirmation !== "DELETE") return;
 
-    setIsDeleting(true)
+    setIsDeleting(true);
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       await axios.delete("http://localhost:5000/api/users/profile", {
         headers: { Authorization: `Bearer ${token}` },
-      })
-      localStorage.removeItem("token")
-      setDeleteDialogOpen(false)
-      router.push("/login")
+      });
+      localStorage.removeItem("token");
+      setDeleteDialogOpen(false);
+      router.push("/login");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to delete account")
+      setError(err.response?.data?.message || "Failed to delete account");
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    router.push("/login")
-  }
+    localStorage.removeItem("token");
+    router.push("/login");
+  };
+
+  // Resend email verification using the dedicated endpoint.
+  const handleResendVerification = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/resend-email",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(response.data.message);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to resend verification email");
+    }
+  };
+
+  // Enable TFA: call backend to generate a TFA secret.
+  const handleEnableTfa = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/2fa/enable",
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setTfaSecret(response.data.twoFactorSecret);
+      alert(
+        "Two-factor authentication secret generated. Scan the provided QR code or manually enter the secret in your authenticator app."
+      );
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to enable two-factor authentication");
+    }
+  };
+
+  // Verify entered TFA token.
+  const handleVerifyTfa = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/2fa/verify",
+        { token: tfaToken },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setTfaEnabled(true);
+      alert(response.data.message);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to verify two-factor authentication token");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -119,7 +179,7 @@ export default function SettingsPage() {
           <p className="text-muted-foreground">Loading settings...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -132,9 +192,7 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-medium">Settings</h3>
                 <p className="text-sm text-muted-foreground">Manage your account settings and preferences</p>
               </div>
-
               <Separator className="my-4" />
-
               <nav className="flex flex-col space-y-1">
                 <Button variant="ghost" className="justify-start">
                   <User className="mr-2 h-4 w-4" />
@@ -153,9 +211,7 @@ export default function SettingsPage() {
                   Appearance
                 </Button>
               </nav>
-
               <Separator className="my-4" />
-
               <Button
                 variant="outline"
                 className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
@@ -164,7 +220,6 @@ export default function SettingsPage() {
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete Account
               </Button>
-
               <Button variant="ghost" className="w-full justify-start mt-2" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Log Out
@@ -200,22 +255,24 @@ export default function SettingsPage() {
                     <Label>Email Address</Label>
                     <div className="flex items-center gap-2">
                       <Input value={user?.email || ""} readOnly className="bg-muted" />
-                      <Button variant="outline" size="sm">
-                        Verify
-                      </Button>
+                      {emailVerified ? (
+                        <span className="text-green-600 font-medium">Verified</span>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={handleResendVerification}>
+                          Verify
+                        </Button>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Your email address is used for login and notifications
+                      Your email is used for login and notifications.
                     </p>
                   </div>
-
                   <div className="space-y-2">
                     <Label>Account Type</Label>
                     <div className="flex items-center h-10 px-3 rounded-md border bg-muted">
                       {user?.role === "freelancer" ? "Freelancer" : "Student"}
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label>Profile Visibility</Label>
                     <div className="flex items-center justify-between">
@@ -250,9 +307,7 @@ export default function SettingsPage() {
                     </div>
                     <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
                   </div>
-
                   <Separator />
-
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <div className="font-medium">Push Notifications</div>
@@ -277,15 +332,30 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <div className="font-medium">Two-Factor Authentication</div>
-                      <div className="text-sm text-muted-foreground">
-                        Add an extra layer of security to your account
-                      </div>
+                      <div className="text-sm text-muted-foreground">Add an extra layer of security</div>
                     </div>
-                    <Switch checked={twoFactorAuth} onCheckedChange={setTwoFactorAuth} />
+                    <Switch checked={tfaEnabled} onCheckedChange={() => {}} disabled />
                   </div>
-
+                  {!tfaEnabled && (
+                    <div className="space-y-4">
+                      <Button onClick={handleEnableTfa}>Enable Two-Factor Authentication</Button>
+                      {tfaSecret && (
+                        <>
+                          <p className="text-sm text-muted-foreground">
+                            Your secret: <span className="font-mono">{tfaSecret}</span>
+                          </p>
+                          <Label htmlFor="tfaToken">Enter token from your authenticator app:</Label>
+                          <Input
+                            id="tfaToken"
+                            value={tfaToken}
+                            onChange={(e) => setTfaToken(e.target.value)}
+                          />
+                          <Button onClick={handleVerifyTfa}>Verify 2FA Token</Button>
+                        </>
+                      )}
+                    </div>
+                  )}
                   <Separator />
-
                   <div className="space-y-2">
                     <Label>Change Password</Label>
                     <Button variant="outline" className="w-full">
@@ -323,8 +393,6 @@ export default function SettingsPage() {
           </Tabs>
         </div>
       </div>
-
-      {/* Delete Account Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -332,19 +400,16 @@ export default function SettingsPage() {
               <AlertTriangle className="h-5 w-5 mr-2" /> Delete Account
             </DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete your account and remove your data from our
-              servers.
+              This action cannot be undone. It will permanently delete your account and all associated data.
             </DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4 py-4">
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                All your data, including profile information, tasks, and payment history will be permanently deleted.
+                All your data, including profile information and tasks, will be permanently deleted.
               </AlertDescription>
             </Alert>
-
             <div className="space-y-2">
               <Label htmlFor="confirm">Type DELETE to confirm</Label>
               <Input
@@ -355,7 +420,6 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
@@ -378,6 +442,5 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
-

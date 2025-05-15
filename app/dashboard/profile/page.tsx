@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
@@ -22,6 +21,7 @@ import {
   AlertCircle,
   Camera,
   CheckCircle,
+  Check,
   Loader2,
   Linkedin,
   Github,
@@ -59,6 +59,7 @@ interface Profile {
   photo?: string;
   rating?: number;
   testimonials?: Testimonial[];
+  isEmailVerified?: boolean;
 }
 
 export default function ProfilePage() {
@@ -109,9 +110,9 @@ export default function ProfilePage() {
 
   const calculateProfileCompletion = (userData: any) => {
     const fields = [
-      userData.name, 
-      userData.phone, 
-      userData.college, 
+      userData.name,
+      userData.phone,
+      userData.college,
       userData.bio,
       userData.photo,
       userData.linkedIn,
@@ -213,15 +214,34 @@ export default function ProfilePage() {
                 <div className="relative mb-4 group">
                   <Avatar className="h-24 w-24 border-4 border-background">
                     <AvatarImage
-                      src={photoPreview || (profile?.photo ? (profile.photo.startsWith("http") ? profile.photo : `http://localhost:5000${profile.photo}`) : undefined)}
+                      src={
+                        photoPreview ||
+                        (profile?.photo
+                          ? profile.photo.startsWith("http")
+                            ? profile.photo
+                            : `http://localhost:5000${profile.photo}`
+                          : undefined)
+                      }
                     />
                     <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                       {name ? name.charAt(0).toUpperCase() : "U"}
                     </AvatarFallback>
                   </Avatar>
                 </div>
-                <h2 className="text-xl font-bold">{name || "Your Name"}</h2>
-                <p className="text-muted-foreground">{profile?.role === "freelancer" ? "Freelancer" : "Student"}</p>
+                <div className="flex items-center">
+                  <h2 className="text-xl font-bold">{name || "Your Name"}</h2>
+                  {profile?.isEmailVerified && (
+                    <div
+                      className="ml-2 flex items-center justify-center rounded-full bg-green-100 p-1 shadow-md"
+                      title="Verified"
+                    >
+                      <Check className="h-5 w-5 text-green-600" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-muted-foreground">
+                  {profile?.role === "freelancer" ? "Freelancer" : "Student"}
+                </p>
                 <div className="w-full mt-4">
                   <div className="flex justify-between text-sm mb-1">
                     <span>Profile completion</span>
@@ -286,15 +306,15 @@ export default function ProfilePage() {
                                 <AvatarImage
                                   src={
                                     testimonial.client?.photo
-                                      ? (testimonial.client.photo.startsWith("http")
+                                      ? testimonial.client.photo.startsWith("http")
                                         ? testimonial.client.photo
-                                        : `http://localhost:5000${testimonial.client.photo}`)
+                                        : `http://localhost:5000${testimonial.client.photo}`
                                       : undefined
                                   }
                                 />
                                 <AvatarFallback>
-                                  {testimonial.client?.name 
-                                    ? testimonial.client.name.charAt(0).toUpperCase() 
+                                  {testimonial.client?.name
+                                    ? testimonial.client.name.charAt(0).toUpperCase()
                                     : "?"}
                                 </AvatarFallback>
                               </Avatar>
@@ -356,7 +376,14 @@ export default function ProfilePage() {
                       <div className="flex items-center gap-4">
                         <Avatar className="h-16 w-16">
                           <AvatarImage
-                            src={photoPreview || (profile?.photo ? (profile.photo.startsWith("http") ? profile.photo : `http://localhost:5000${profile.photo}`) : undefined)}
+                            src={
+                              photoPreview ||
+                              (profile?.photo
+                                ? profile.photo.startsWith("http")
+                                  ? profile.photo
+                                  : `http://localhost:5000${profile.photo}`
+                                : undefined)
+                            }
                           />
                           <AvatarFallback className="bg-primary/10 text-primary">
                             {name ? name.charAt(0).toUpperCase() : "U"}
@@ -455,10 +482,11 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                 </Card>
+                </TabsContent>
                 <TabsContent value="skills" className="mt-4 space-y-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Skills</CardTitle>
+                      <CardTitle>Skills & Experience</CardTitle>
                       <CardDescription>
                         Add your skills to help clients find you for projects
                       </CardDescription>
@@ -466,20 +494,24 @@ export default function ProfilePage() {
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
                         <Label>Your Skills</Label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {skills.map(skill => (
-                            <Badge key={skill} variant="secondary" className="flex items-center gap-1 px-3 py-1.5">
-                              {skill}
-                              <button
-                                type="button"
-                                className="ml-1 rounded-full text-muted-foreground hover:text-foreground"
-                                onClick={() => removeSkill(skill)}
-                              >
-                                ×
-                              </button>
-                            </Badge>
-                          ))}
-                        </div>
+                        {skills && skills.length > 0 ? (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {skills.map((skill) => (
+                              <Badge key={skill} variant="secondary" className="flex items-center gap-1 px-3 py-1.5">
+                                {skill}
+                                <button
+                                  type="button"
+                                  className="ml-1 rounded-full text-muted-foreground hover:text-foreground"
+                                  onClick={() => removeSkill(skill)}
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic">No skills added yet.</p>
+                        )}
                         <div className="flex gap-2">
                           <Input
                             placeholder="Add a skill (e.g., JavaScript)"
@@ -512,8 +544,7 @@ export default function ProfilePage() {
                     )}
                   </Button>
                 </div>
-              </TabsContent>
-            </form>
+              </form>
           </Tabs>
         </div>
       </div>
