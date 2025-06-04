@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import { io, type Socket } from "socket.io-client";
+import CryptoJS from "crypto-js";
 import {
   Send,
   Loader2,
@@ -23,7 +24,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -41,11 +41,13 @@ import {
 
 interface Message {
   _id: string;
+  _tempId?: string; // temporary id used for optimistic messages
   sender: { _id: string; name: string; photo: string };
   text: string;
-  status: "sent" | "delivered" | "read" | "pending";
+  status: "pending" | "sent" | "received" | "read";
   timestamp: string;
   conversationId?: string;
+  clientTemp?: boolean;
 }
 
 interface Conversation {
@@ -62,6 +64,8 @@ interface DecodedToken {
   exp?: number;
 }
 
+const ENCRYPTION_KEY = "your-encryption-key"; // must match your .env value
+
 const decodeToken = (token: string): DecodedToken | null => {
   try {
     return jwt.decode(token) as DecodedToken;
@@ -69,6 +73,25 @@ const decodeToken = (token: string): DecodedToken | null => {
     console.error("Error decoding token:", error);
     return null;
   }
+};
+
+// Decrypt only if the string is encrypted (i.e. starts with "U2FsdGVk")
+const decryptMessage = (ciphertext: string, key: string): string => {
+  if (!ciphertext.startsWith("U2FsdGVk")) {
+    return ciphertext;
+  }
+  try {
+    const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+    return decrypted || ciphertext;
+  } catch (error) {
+    console.error("Decryption error:", error);
+    return ciphertext;
+  }
+};
+
+const encryptMessage = (plaintext: string, key: string): string => {
+  return CryptoJS.AES.encrypt(plaintext, key).toString();
 };
 
 export default function ChatPage() {
@@ -82,9 +105,12 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<DecodedToken | null>(null);
 
-  // Helper: Check if a message is sent by current user.
-  const isCurrentUserMessage = (senderId: string): boolean =>
-    currentUser ? currentUser._id === senderId : false;
+  // Helper to check if a message is sent by current user.
+  const isCurrentUserMessage = useCallback(
+    (senderId: string): boolean =>
+      currentUser ? currentUser._id === senderId : false,
+    [currentUser]
+  );
 
   // Decode token on mount.
   useEffect(() => {
@@ -101,13 +127,11 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Initialize socket.
+  // Initialize socket connection once.
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    const newSocket = io("http://localhost:5000", {
-      auth: { token },
-    });
+    const newSocket = io("http://localhost:5000", { auth: { token } });
     setSocket(newSocket);
     return () => {
       newSocket.disconnect();
@@ -116,36 +140,72 @@ export default function ChatPage() {
 
   // Setup socket event listeners.
   useEffect(() => {
-    if (!socket || !conversation) return;
-    socket.emit("joinConversation", conversation._id);
+    if (!socket) return;
 
     socket.on("message", (incomingMessage: Message) => {
-      setConversation((prev) =>
-        prev ? { ...prev, messages: [...prev.messages, incomingMessage] } : null
-      );
-      if (currentUser && incomingMessage.sender._id !== currentUser._id) {
-        socket.emit("markAsRead", [incomingMessage._id]);
+      // Decrypt the incoming message.
+      const decryptedText = decryptMessage(incomingMessage.text, ENCRYPTION_KEY);
+      const incoming = { ...incomingMessage, text: decryptedText };
+
+      setConversation((prev) => {
+        if (!prev) return prev;
+        // If message is from current user, try to match with an optimistic message.
+        if (currentUser && incoming.sender._id === currentUser._id) {
+          const idx = prev.messages.findIndex((msg) => {
+            // Check if optimistic message exists (clientTemp true) and tempId matches.
+            if (msg.clientTemp && msg._tempId && incoming._tempId) {
+              return msg._tempId === incoming._tempId;
+            }
+            // Alternatively, match based on text and close timestamp (within 3 sec).
+            const timeDiff = Math.abs(
+              new Date(incoming.timestamp).getTime() -
+                new Date(msg.timestamp).getTime()
+            );
+            return msg.clientTemp && msg.text === incoming.text && timeDiff < 3000;
+          });
+          if (idx !== -1) {
+            const updatedMessages = [...prev.messages];
+            updatedMessages[idx] = { ...incoming, clientTemp: false };
+            return { ...prev, messages: updatedMessages };
+          }
+        }
+        // Otherwise, check whether this incoming message already exists (avoid duplicate append).
+        if (prev.messages.some((msg) => msg._id === incoming._id)) {
+          return prev;
+        }
+        return { ...prev, messages: [...prev.messages, incoming] };
+      });
+
+      // For messages from other users, inform backend to update delivery/read status.
+      if (currentUser && incoming.sender._id !== currentUser._id) {
+        socket.emit("messageDelivered", { messageId: incoming._id });
+        socket.emit("markAsRead", [incoming._id]);
       }
     });
 
-    socket.on("messageStatus", ({ messageId, status }) => {
-      setConversation((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: prev.messages.map((msg) =>
-                msg._id === messageId ? { ...msg, status } : msg
-              ),
-            }
-          : null
-      );
-    });
+    socket.on(
+      "messageStatus",
+      ({ messageId, status }: { messageId: string; status: Message["status"] }) => {
+        setConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                messages: prev.messages.map((msg) =>
+                  msg._id === messageId
+                    ? { ...msg, status, clientTemp: false }
+                    : msg
+                ),
+              }
+            : null
+        );
+      }
+    );
 
     return () => {
       socket.off("message");
       socket.off("messageStatus");
     };
-  }, [socket, conversation, currentUser]);
+  }, [socket, currentUser]);
 
   // Fetch conversation data.
   useEffect(() => {
@@ -161,11 +221,12 @@ export default function ChatPage() {
           ...response.data,
           messages: response.data.messages.map((msg: Message) => ({
             ...msg,
+            text: decryptMessage(msg.text, ENCRYPTION_KEY),
             sender: { ...msg.sender, _id: msg.sender._id.toString() },
+            clientTemp: false,
           })),
         };
-        // If the conversation contains exactly one message and it is from the freelancer,
-        // then consider it as the freelancer's application message and remove it.
+        // Optionally remove any system messages if needed.
         if (
           conv.messages.length === 1 &&
           currentUser &&
@@ -183,37 +244,58 @@ export default function ChatPage() {
     if (currentUser) {
       fetchConversation();
     }
-  }, [id, socket, currentUser, isCurrentUserMessage]);
+  }, [id, currentUser, isCurrentUserMessage]);
 
   useEffect(() => {
     scrollToBottom();
   }, [conversation?.messages, scrollToBottom]);
 
+  const getMessageStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="h-3.5 w-3.5 text-gray-400" />;
+      case "sent":
+        return <Check className="h-3.5 w-3.5 text-gray-400" />;
+      case "received":
+        return <CheckCheck className="h-3.5 w-3.5 text-green-500" />;
+      case "read":
+        return <CheckCheck className="h-3.5 w-3.5 text-blue-500" />;
+      default:
+        return <Check className="h-3.5 w-3.5 text-gray-400" />;
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !conversation || !socket || !currentUser) return;
     setSending(true);
+    // Use a temporary id for optimistic message correlation.
     const tempId = Date.now().toString();
+    const timestamp = new Date().toISOString();
     try {
-      const newMsg: Message = {
+      const encryptedText = encryptMessage(newMessage, ENCRYPTION_KEY);
+      const optimisticMessage: Message = {
         _id: tempId,
+        _tempId: tempId,
         sender: { _id: currentUser._id, name: "", photo: "" },
-        text: newMessage,
+        text: newMessage, // plain text for optimistic display
         status: "pending",
-        timestamp: new Date().toISOString(),
+        timestamp,
+        clientTemp: true,
       };
+
       setConversation((prev) =>
-        prev ? { ...prev, messages: [...prev.messages, newMsg] } : null
+        prev ? { ...prev, messages: [...prev.messages, optimisticMessage] } : null
       );
       const token = localStorage.getItem("token");
       await axios.post(
         `http://localhost:5000/api/conversations/${conversation._id}/message`,
-        { text: newMessage },
+        { text: encryptedText },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       socket.emit("sendMessage", {
         conversationId: conversation._id,
-        message: newMsg,
+        message: { ...optimisticMessage, text: encryptedText },
       });
       setNewMessage("");
     } catch (error) {
@@ -269,21 +351,6 @@ export default function ChatPage() {
     return groups;
   };
 
-  const getMessageStatusIcon = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Clock className="h-3.5 w-3.5 text-gray-400" />;
-      case "sent":
-        return <Check className="h-3.5 w-3.5 text-gray-400" />;
-      case "delivered":
-        return <CheckCheck className="h-3.5 w-3.5 text-gray-400" />;
-      case "read":
-        return <CheckCheck className="h-3.5 w-3.5 text-blue-500" />;
-      default:
-        return <Check className="h-3.5 w-3.5 text-gray-400" />;
-    }
-  };
-
   if (loading || !conversation) {
     return (
       <div className="flex h-screen bg-white dark:bg-gray-900">
@@ -302,7 +369,7 @@ export default function ChatPage() {
     <div className="flex h-screen bg-[#E4DDD6] dark:bg-gray-900">
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
-        <div className="p-4 flex items-center gap-3 bg-[#075E54] dark:bg-gray-800 text-white shadow-md">
+        <div className="p-4 flex items-center gap-3 bg-[#292828] dark:bg-gray-800 text-white shadow-md">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10">
             <ArrowLeft className="h-5 w-5" />
             <span className="sr-only">Back</span>
@@ -330,7 +397,9 @@ export default function ChatPage() {
             </div>
             <div>
               <h2 className="font-medium line-clamp-1">{otherUser.name}</h2>
-              <p className="text-xs text-green-300">{otherUser.online ? "online" : "offline"}</p>
+              <p className="text-xs text-green-300">
+                {otherUser.online ? "online" : "offline"}
+              </p>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-1">
@@ -395,17 +464,13 @@ export default function ChatPage() {
                 {typeof conversation.task === "object" ? conversation.task.title : conversation.task}
               </span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push(`/task/${typeof conversation.task === "object" ? conversation.task._id : ""}`)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/task/${typeof conversation.task === "object" ? conversation.task._id : ""}`)}>
               View Details
             </Button>
           </div>
         )}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {groupMessagesByDate(conversation.messages).map((group, groupIndex) => (
+          {messageGroups.map((group, groupIndex) => (
             <div key={groupIndex} className="space-y-4">
               <div className="flex justify-center">
                 <Badge variant="outline" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-sm">
@@ -479,11 +544,7 @@ export default function ChatPage() {
           <Button
             type="submit"
             size="icon"
-            className={`rounded-full ${
-              newMessage.trim()
-                ? "bg-[#00A884] hover:bg-[#008f70] text-white"
-                : "bg-[#54656F] text-white dark:bg-gray-700 dark:text-gray-400"
-            }`}
+            className={`rounded-full ${newMessage.trim() ? "bg-[#00A884] hover:bg-[#008f70] text-white" : "bg-[#54656F] text-white dark:bg-gray-700 dark:text-gray-400"}`}
             disabled={sending || !newMessage.trim()}
           >
             {sending ? (

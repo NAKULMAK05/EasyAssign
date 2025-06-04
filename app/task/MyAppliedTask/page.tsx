@@ -304,18 +304,29 @@ export default function MyAppliedTasks() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Applied Tasks</h1>
-          <p className="text-muted-foreground mt-1">Track and manage tasks you've applied for</p>
-        </div>
-        <Button asChild variant="outline" className="self-start">
-          <Link href="/dashboard">
-            <ChevronDown className="mr-2 h-4 w-4 rotate-90" />
-            Back to Dashboard
-          </Link>
-        </Button>
-      </div>
+     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+  <div>
+    <h1 className="text-3xl font-bold tracking-tight">My Applied Tasks</h1>
+    <p className="text-muted-foreground mt-1">Track and manage tasks you've applied for</p>
+  </div>
+
+  {/* Wrap buttons in a flex div */}
+  <div className="flex gap-4">
+    <Button asChild variant="outline" className="self-start">
+      <Link href="/dashboard/tasks/stats">
+        <ChevronDown className="h-4 w-4 rotate-270" />
+        Get Detailed Stats
+      </Link>
+    </Button>
+
+    <Button asChild variant="outline" className="self-start">
+      <Link href="/dashboard">
+        <ChevronDown className="mr-1 h-4 w-3 rotate-90" />
+        Back to Dashboard
+      </Link>
+    </Button>
+  </div>
+</div>
 
       {error && (
         <Alert variant="destructive" className="mb-6">

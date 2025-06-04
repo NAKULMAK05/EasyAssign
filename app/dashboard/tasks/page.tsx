@@ -309,12 +309,19 @@ export default function MyTasksPage() {
           <h1 className="text-3xl font-bold tracking-tight">My Tasks</h1>
           <p className="text-muted-foreground mt-1">Manage and track your posted tasks</p>
         </div>
-        <Button asChild>
-          <Link href="/task/create">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Task
-          </Link>
-        </Button>
+        <div className="flex gap-4">
+  <Button asChild>
+    <Link href="/task/create">
+      <Plus className="mr-2 h-4 w-4" />
+      Create Task
+    </Link>
+  </Button>
+  <Button asChild>
+    <Link href="tasks/stats">
+      See Stats
+    </Link>
+  </Button>
+</div>
       </div>
 
       {error && (
