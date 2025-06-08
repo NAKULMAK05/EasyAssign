@@ -79,6 +79,9 @@ export default function MyTasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // For pop up error message specific to delete operation
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -153,7 +156,11 @@ export default function MyTasksPage() {
       });
       setTasks((prev) => prev.filter((task) => task._id !== deleteTaskId));
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to delete task");
+      // If the error message indicates task is assigned, show pop-up error message.
+      const errMsg =
+        error.response?.data?.message ||
+        "Failed to delete task";
+      setDeleteErrorMessage(errMsg);
     } finally {
       setIsDeleting(false);
       setDeleteTaskId(null);
@@ -310,18 +317,18 @@ export default function MyTasksPage() {
           <p className="text-muted-foreground mt-1">Manage and track your posted tasks</p>
         </div>
         <div className="flex gap-4">
-  <Button asChild>
-    <Link href="/task/create">
-      <Plus className="mr-2 h-4 w-4" />
-      Create Task
-    </Link>
-  </Button>
-  <Button asChild>
-    <Link href="tasks/stats">
-      See Stats
-    </Link>
-  </Button>
-</div>
+          <Button asChild>
+            <Link href="/task/create">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Task
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="tasks/stats">
+              See Stats
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -534,6 +541,23 @@ export default function MyTasksPage() {
                   Delete Task
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Error Pop-Up Dialog */}
+      <Dialog open={Boolean(deleteErrorMessage)} onOpenChange={(open) => { if (!open) setDeleteErrorMessage(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deletion Error</DialogTitle>
+            <DialogDescription>
+              {deleteErrorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteErrorMessage("")}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

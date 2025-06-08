@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import CommonHeader from "@/components/CommonHeader";
 
 export const metadata: Metadata = {
   title: "TaskHub",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body suppressHydrationWarning>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+          {/* <CommonHeader /> */}
           {children}
         </GoogleOAuthProvider>
       </body>

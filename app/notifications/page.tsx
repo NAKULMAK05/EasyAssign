@@ -90,8 +90,8 @@ interface Message {
 interface Conversation {
   _id: string;
   task: { _id: string; title: string };
-  client: { _id: string; name: string; photo: string; online?: boolean; lastSeen?: string };
-  freelancer: { _id: string; name: string; photo: string; online?: boolean; lastSeen?: string };
+  client: { _id: string; name?: string; photo: string; online?: boolean; lastSeen?: string } | null;
+  freelancer: { _id: string; name?: string; photo: string; online?: boolean; lastSeen?: string } | null;
   messages: Message[];
   unreadCount: number;
   isPinned?: boolean;
@@ -108,6 +108,18 @@ const getLastMessage = (conversation: Conversation, currentUserId: string): stri
   const isOwnMessage = lastMessage.sender._id === currentUserId;
   const prefix = isOwnMessage ? "You: " : "";
   return `${prefix}${lastMessage.text}`;
+};
+
+// Updated getOtherUser to safely check properties and return a fallback if needed.
+const getOtherUser = (conversation: Conversation) => {
+  // If both client and freelancer exist, decide based on currentUserId.
+  if (conversation.client && conversation.freelancer) {
+    return String(conversation.client._id) === getCurrentUserId()
+      ? conversation.freelancer
+      : conversation.client;
+  }
+  // Fallback to whichever exists.
+  return conversation.client || conversation.freelancer || { _id: "", name: "User", photo: "" };
 };
 
 // ---------- Component ----------
@@ -188,15 +200,11 @@ export default function NotificationsPage() {
     }
   };
 
-  const getOtherUser = (conversation: Conversation) => {
-    return String(conversation.client._id) === currentUserId
-      ? conversation.freelancer
-      : conversation.client;
-  };
-
   const getFilteredConversations = () => {
     let filtered = conversations.filter((conv) => {
       const otherUser = getOtherUser(conv);
+      // Safeguard: If otherUser or its name is missing, skip this conversation.
+      if (!otherUser || !otherUser.name) return false;
       const search = searchQuery.toLowerCase();
       const matchesSearch =
         otherUser.name.toLowerCase().includes(search) ||
@@ -218,18 +226,19 @@ export default function NotificationsPage() {
     });
 
     filtered.sort((a, b) => {
-      // Important conversations come first
+      // Important conversations come first.
       if (a.priority === "high" && b.priority !== "high") return -1;
       if (a.priority !== "high" && b.priority === "high") return 1;
-      // Then pinned conversations
+      // Then pinned conversations.
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      // Then sort based on sortBy preference
+      // Then sort based on sortBy preference.
       switch (sortBy) {
         case "unread":
           return b.unreadCount - a.unreadCount;
         case "name":
-          return getOtherUser(a).name.localeCompare(getOtherUser(b).name);
+          // Use optional chaining to safely compare names.
+          return (getOtherUser(a)?.name || "").localeCompare(getOtherUser(b)?.name || "");
         default:
           const aTime = a.messages[a.messages.length - 1]?.timestamp || "";
           const bTime = b.messages[b.messages.length - 1]?.timestamp || "";
@@ -316,7 +325,7 @@ export default function NotificationsPage() {
 
   const handleToggleUnreadConversation = async (convId: string, currentUnreadCount: number) => {
     try {
-      // Toggle unread: if current is >0 mark as read, otherwise mark as unread (for demo purposes, we simply set count to 1)
+      // Toggle unread: if current is >0 mark as read; otherwise mark as unread (for demo purposes, we simply set count to 1).
       const newUnreadCount = currentUnreadCount > 0 ? 0 : 1;
       await axios.patch(
         `http://localhost:5000/api/conversations/${convId}`,
@@ -523,10 +532,10 @@ export default function NotificationsPage() {
                             </AvatarFallback>
                           )}
                         </Avatar>
-                        {otherUser.online ? (
+                        {otherUser?.online ? (
                           <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
                         ) : (
-                          otherUser.lastSeen && (
+                          otherUser?.lastSeen && (
                             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-gray-400 border-2 border-white"></span>
                           )
                         )}
