@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
+import Cookies from "js-cookie";
 import { Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,11 @@ export default function LoginPage() {
         email,
         password: loginPassword,
       });
-      localStorage.setItem("token", response.data.token);
+      // Store token in localStorage, sessionStorage, and as a cookie for session management.
+      const token = response.data.token;
+      localStorage.setItem("token", token);
+      sessionStorage.setItem("token", token);
+      Cookies.set("authToken", token, { expires: 1, path: "/" });
       router.push(response.data.redirectTo || "/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed");
@@ -56,7 +61,10 @@ export default function LoginPage() {
       });
       // If not a first-time user, login directly to dashboard.
       if (!response.data.firstTime) {
-        localStorage.setItem("token", response.data.token);
+        const token = response.data.token;
+        localStorage.setItem("token", token);
+        sessionStorage.setItem("token", token);
+        Cookies.set("authToken", token, { expires: 1, path: "/" });
         router.push(response.data.redirectTo || "/dashboard");
       } else {
         // New user: prompt for role selection.
@@ -66,7 +74,9 @@ export default function LoginPage() {
     } catch (err: any) {
       const errMsg = err.response?.data?.message || "";
       // If backend returns error specifically asking for role, show popup.
-      if (errMsg === "Role is required. Please select 'student' or 'freelancer'.") {
+      if (
+        errMsg === "Role is required. Please select 'student' or 'freelancer'."
+      ) {
         setGoogleCredential(tokenResponse.credential);
         setShowRolePopup(true);
       } else {
@@ -92,7 +102,10 @@ export default function LoginPage() {
         tokenId: googleCredential,
         role,
       });
-      localStorage.setItem("token", response.data.token);
+      const token = response.data.token;
+      localStorage.setItem("token", token);
+      sessionStorage.setItem("token", token);
+      Cookies.set("authToken", token, { expires: 1, path: "/" });
       setShowRolePopup(false);
       if (role === "freelancer") {
         router.push("/complete-freelancer-profile");

@@ -31,6 +31,7 @@ import {
   Tooltip,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import CommonHeader from "@/components/CommonHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -231,6 +232,8 @@ export default function TaskStatsPage() {
   }
 
   return (
+    <>
+    <CommonHeader />
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
@@ -854,6 +857,7 @@ export default function TaskStatsPage() {
         </Tabs>
       </div>
     </div>
+    </>
   )
 }
   

@@ -31,6 +31,7 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import CommonHeader from "@/components/CommonHeader";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -69,12 +70,7 @@ export interface Task {
   acceptedBy?: string;
 }
 
-// Extend Task locally to add a temporary _decision property for filtering/sorting.
-// Here, we use the following logic for the freelancer's view:
-// - "pending": if the client has assigned him the task (i.e. acceptedBy matches current user)
-//              OR if no client action has been taken.
-// - "rejected": if the client's decision for the application is "declined".
-// - "completed": if the task status is "completed".
+// Extend Task to add a temporary _decision property for filtering/sorting.
 interface ExtendedTask extends Task {
   _decision: "pending" | "rejected" | "completed";
 }
@@ -85,9 +81,9 @@ export default function MyAppliedTasks() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  // "recent", "titleAsc", "titleDesc", "budgetHigh", "budgetLow"
+  // Sorting options: "recent", "titleAsc", "titleDesc", "budgetHigh", "budgetLow"
   const [sortOption, setSortOption] = useState("recent");
-  // statusFilter values: "all", "pending", "rejected", "completed"
+  // statusFilter values: "all", "pending", "accepted", "rejected", "completed"
   const [statusFilter, setStatusFilter] = useState("all");
   const [withdrawingTaskId, setWithdrawingTaskId] = useState<string | null>(null);
   const [confirmWithdrawTaskId, setConfirmWithdrawTaskId] = useState<string | null>(null);
@@ -128,7 +124,6 @@ export default function MyAppliedTasks() {
       if (task.status === "completed") {
         decision = "completed";
       } else if (task.acceptedBy && task.acceptedBy.toString() === userId) {
-        // If the client has assigned the freelancer, we show "pending" status.
         decision = "pending";
       } else if (userApplication?.decision === "declined") {
         decision = "rejected";
@@ -233,10 +228,6 @@ export default function MyAppliedTasks() {
   };
 
   // Get status badge based on application decision.
-  // Per requirements, this function shows:
-  // - "Pending" if the client has assigned him the task (i.e. task.acceptedBy matches current user) or if no action was taken.
-  // - "Rejected" if the client has rejected the freelancer.
-  // - "Completed" if the client has marked the task as completed.
   const getStatusBadge = (decision: string) => {
     switch (decision) {
       case "completed":
@@ -303,100 +294,102 @@ export default function MyAppliedTasks() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-  <div>
-    <h1 className="text-3xl font-bold tracking-tight">My Applied Tasks</h1>
-    <p className="text-muted-foreground mt-1">Track and manage tasks you've applied for</p>
-  </div>
-
-  {/* Wrap buttons in a flex div */}
-  <div className="flex gap-4">
-    <Button asChild variant="outline" className="self-start">
-      <Link href="/dashboard/tasks/stats">
-        <ChevronDown className="h-4 w-4 rotate-270" />
-        Get Detailed Stats
-      </Link>
-    </Button>
-
-    <Button asChild variant="outline" className="self-start">
-      <Link href="/dashboard">
-        <ChevronDown className="mr-1 h-4 w-3 rotate-90" />
-        Back to Dashboard
-      </Link>
-    </Button>
-  </div>
-</div>
-
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Filters and Search */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search tasks..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <>
+      <CommonHeader />
+      <div className="container mx-auto p-6 max-w-7xl">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              My Applied Tasks
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Track and manage tasks you've applied for
+            </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Most Recent</SelectItem>
-                <SelectItem value="titleAsc">Title (A-Z)</SelectItem>
-                <SelectItem value="titleDesc">Title (Z-A)</SelectItem>
-                <SelectItem value="budgetHigh">Budget (High-Low)</SelectItem>
-                <SelectItem value="budgetLow">Budget (Low-High)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex gap-4">
+            <Button asChild variant="outline" className="self-start">
+              <Link href="/dashboard/tasks/stats">
+                <ChevronDown className="h-4 w-4 rotate-270" />
+                Get Detailed Stats
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="self-start">
+              <Link href="/dashboard">
+                <ChevronDown className="mr-1 h-4 w-3 rotate-90" />
+                Back to Dashboard
+              </Link>
+            </Button>
           </div>
         </div>
-      </div>
 
-      {filteredTasks.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-            <Calendar className="h-8 w-8 text-muted-foreground" />
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Filters and Search */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search tasks..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortOption} onValueChange={setSortOption}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Most Recent</SelectItem>
+                  <SelectItem value="titleAsc">Title (A-Z)</SelectItem>
+                  <SelectItem value="titleDesc">Title (Z-A)</SelectItem>
+                  <SelectItem value="budgetHigh">Budget (High-Low)</SelectItem>
+                  <SelectItem value="budgetLow">Budget (Low-High)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <h3 className="text-xl font-medium mb-2">No tasks found</h3>
-          <p className="text-muted-foreground max-w-md mx-auto mb-6">
-            {searchTerm || statusFilter !== "all"
-              ? "Try adjusting your search criteria or filters to see more results."
-              : "You haven't applied to any tasks yet. Browse available tasks to get started."}
-          </p>
-          <Button asChild>
-            <Link href="/dashboard">Browse Tasks</Link>
-          </Button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTasks.map((task) => {
-            return (
+
+        {filteredTasks.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+              <Calendar className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-medium mb-2">No tasks found</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-6">
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search criteria or filters to see more results."
+                : "You haven't applied to any tasks yet. Browse available tasks to get started."}
+            </p>
+            <Button asChild>
+              <Link href="/dashboard">Browse Tasks</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTasks.map((task) => (
               <Card key={task._id} className="overflow-hidden transition-all hover:shadow-md">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
@@ -476,57 +469,57 @@ export default function MyAppliedTasks() {
                   </div>
                 </CardFooter>
               </Card>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {/* Confirmation Dialog for Withdrawal */}
-      <Dialog
-        open={Boolean(confirmWithdrawTaskId)}
-        onOpenChange={(open) => {
-          if (!open) setConfirmWithdrawTaskId(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Withdrawal</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to withdraw your application? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmWithdrawTaskId(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => confirmWithdrawTaskId && withdrawApplication(confirmWithdrawTaskId)}
-              className="ml-2"
-            >
-              Confirm Withdrawal
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Confirmation Dialog for Withdrawal */}
+        <Dialog
+          open={Boolean(confirmWithdrawTaskId)}
+          onOpenChange={(open) => {
+            if (!open) setConfirmWithdrawTaskId(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Withdrawal</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to withdraw your application? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmWithdrawTaskId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => confirmWithdrawTaskId && withdrawApplication(confirmWithdrawTaskId)}
+                className="ml-2"
+              >
+                Confirm Withdrawal
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Error Dialog for Withdrawal Failure */}
-      <Dialog
-        open={Boolean(withdrawErrorDialog)}
-        onOpenChange={(open) => {
-          if (!open) setWithdrawErrorDialog(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Withdrawal Error</DialogTitle>
-            <DialogDescription>{withdrawErrorDialog}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setWithdrawErrorDialog(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        {/* Error Dialog for Withdrawal Failure */}
+        <Dialog
+          open={Boolean(withdrawErrorDialog)}
+          onOpenChange={(open) => {
+            if (!open) setWithdrawErrorDialog(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Withdrawal Error</DialogTitle>
+              <DialogDescription>{withdrawErrorDialog}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setWithdrawErrorDialog(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
   );
 }

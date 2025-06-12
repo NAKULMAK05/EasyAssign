@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, Bell, Globe, Lock, LogOut, Trash2, User, Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import CommonHeader from "@/components/CommonHeader";
 import {
   Dialog,
   DialogContent,
@@ -114,9 +115,23 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.push("/login");
-  };
+  // Remove specific tokens from localStorage
+  localStorage.removeItem("token");
+  localStorage.removeItem("authToken");
+  
+  // Remove specific tokens from sessionStorage
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("authToken");
+  
+  // Optionally, clear all stored cookies
+  document.cookie.split(";").forEach((c) => {
+    document.cookie = c
+      .replace(/^ +/, "")
+      .replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`);
+  });
+  
+  router.push("/login");
+};
 
   // Resend email verification using the dedicated endpoint.
   const handleResendVerification = async () => {
@@ -183,6 +198,8 @@ export default function SettingsPage() {
   }
 
   return (
+    <>
+     <CommonHeader />
     <div className="container max-w-screen-xl py-6 px-4 md:px-6">
       <div className="flex flex-col space-y-6 md:space-y-0 md:flex-row md:gap-6">
         <div className="md:w-1/4">
@@ -442,5 +459,6 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

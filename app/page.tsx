@@ -1,10 +1,11 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, useScroll, useTransform } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useState, useLayoutEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight,
   Users,
@@ -19,24 +20,39 @@ import {
   Search,
   Menu,
   X,
-} from "lucide-react"
-import Link from "next/link"
+} from "lucide-react";
+import Link from "next/link";
 
 export default function LandingPage() {
-  const [isVisible, setIsVisible] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { scrollYProgress } = useScroll()
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
+  const router = useRouter();
+  const [isVisible, setIsVisible] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { scrollYProgress } = useScroll();
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
 
-  useEffect(() => {
-    setIsVisible(true)
-  }, [])
+  // Check if a token exists immediately using useLayoutEffect instead of useEffect.
+  useLayoutEffect(() => {
+    const storedToken =
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("token") ||
+      sessionStorage.getItem("authToken");
+    // If token exists, redirect immediately to dashboard.
+    if (storedToken) {
+      router.replace("/dashboard");
+    } else {
+      setIsVisible(true);
+    }
+  }, [router]);
+
+  // Until the check completes, render nothing.
+  if (!isVisible) return null;
 
   const fadeInUp = {
     initial: { opacity: 0, y: 60 },
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.6, ease: "easeOut" },
-  }
+  };
 
   const staggerContainer = {
     animate: {
@@ -44,7 +60,7 @@ export default function LandingPage() {
         staggerChildren: 0.1,
       },
     },
-  }
+  };
 
   const features = [
     {
@@ -77,7 +93,7 @@ export default function LandingPage() {
       title: "Business Insights",
       description: "Detailed analytics to help optimize your freelance business or hiring strategy",
     },
-  ]
+  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -202,9 +218,8 @@ export default function LandingPage() {
                   Connecting Talent & Opportunity
                 </Badge>
                 <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight">
-                  Find Expert
+                  Find Expert{" "}
                   <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {" "}
                     Freelancers
                   </span>
                   <br />
@@ -226,11 +241,6 @@ export default function LandingPage() {
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
-                {/* <Link href="/register">
-                  <Button size="lg" variant="outline" className="px-8 py-6 text-lg">
-                    Join as Freelancer
-                  </Button>
-                </Link> */}
               </div>
 
               <div className="flex items-center space-x-2 pt-4">
@@ -250,13 +260,11 @@ export default function LandingPage() {
               <div className="relative bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
                 <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 blur-xl" />
                 <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-20 blur-xl" />
-
                 <div className="relative space-y-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Find the Perfect Match</h3>
                     <Badge className="bg-green-100 text-green-700">New</Badge>
                   </div>
-
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 transition-colors">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -270,7 +278,6 @@ export default function LandingPage() {
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
-
                     <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 transition-colors">
                       <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-500 rounded-full flex items-center justify-center">
                         <Globe className="h-5 w-5 text-white" />
@@ -283,7 +290,6 @@ export default function LandingPage() {
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
-
                     <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 transition-colors">
                       <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
                         <Zap className="h-5 w-5 text-white" />
@@ -297,7 +303,6 @@ export default function LandingPage() {
                       </Button>
                     </div>
                   </div>
-
                   <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
                     Explore All Categories
                   </Button>
@@ -321,11 +326,9 @@ export default function LandingPage() {
             <Badge className="bg-blue-100 text-blue-700">Platform Features</Badge>
             <h2 className="text-3xl md:text-4xl font-bold">Powerful tools for seamless collaboration</h2>
             <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-              Our comprehensive platform provides everything you need to find talent, manage projects, and deliver
-              exceptional results.
+              Our comprehensive platform provides everything you need to find talent, manage projects, and deliver exceptional results.
             </p>
           </motion.div>
-
           <motion.div
             variants={staggerContainer}
             initial="initial"
@@ -427,11 +430,7 @@ export default function LandingPage() {
               <div className="space-y-6">
                 {[
                   { step: "1", title: "Create Your Profile", desc: "Showcase your skills, experience, and portfolio" },
-                  {
-                    step: "2",
-                    title: "Find Projects",
-                    desc: "Browse and apply to relevant projects that match your skills",
-                  },
+                  { step: "2", title: "Find Projects", desc: "Browse and apply to relevant projects that match your skills" },
                   { step: "3", title: "Submit Proposals", desc: "Send compelling proposals to potential clients" },
                   { step: "4", title: "Get Paid", desc: "Complete work and receive secure, on-time payments" },
                 ].map((item, index) => (
@@ -627,5 +626,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

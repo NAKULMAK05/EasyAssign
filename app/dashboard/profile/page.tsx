@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import CommonHeader from "@/components/CommonHeader";
 import {
   AlertCircle,
   Camera,
@@ -204,6 +205,8 @@ export default function ProfilePage() {
   }
 
   return (
+    <>
+    <CommonHeader />
     <div className="container max-w-screen-xl py-6 px-4 md:px-6">
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar - Profile Summary */}
@@ -549,5 +552,6 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
