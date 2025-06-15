@@ -10,7 +10,6 @@ import {
   Settings,
   LogOut,
   Menu,
-  Bell,
   ChevronDown,
   Sun,
   Moon,
@@ -34,6 +33,7 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Badge } from "@/components/ui/badge";
 
 interface UserProfile {
+  _id?: string;
   name: string;
   photo?: string;
   role?: string;
@@ -43,14 +43,14 @@ export default function CommonHeader() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Do not display header on login and register pages (also admin login/register, task pages, profile pages)
+  // Hide header on specific pages.
   if (
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/admin/register" ||
     pathname === "/admin/login" ||
     pathname === "/admin/dashboard" ||
-    pathname.startsWith("/dashboard/profile/") 
+    pathname.startsWith("/dashboard/profile/")
   ) {
     return null;
   }
@@ -58,29 +58,41 @@ export default function CommonHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [notificationCount, setNotificationCount] = useState(3);
-
-  // ------------------------------------------
-  // Real-time search states and logic.
-  // ------------------------------------------
+  // Removed unreadMessagesCount since we should not show any number above the chat icon.
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Retrieve stored theme from localStorage on mount.
   useEffect(() => {
-    // Debounce the search query; wait 300ms after user stops typing.
+    const storedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (storedTheme) {
+      setTheme(storedTheme);
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, []);
+
+  // Debounced search effect.
+  useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      // Only perform search if query length is at least 2 characters.
       if (searchQuery.trim().length > 1) {
         setIsSearching(true);
         const token = localStorage.getItem("token");
-        // Example endpoint: adjust according to your backend.
         fetch(`http://localhost:5000/api/tasks/search?query=${encodeURIComponent(searchQuery)}`, {
           headers: { Authorization: token ? `Bearer ${token}` : "" },
         })
-          .then((res) => res.json())
+          .then(async (res) => {
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(errorText);
+            }
+            return res.json();
+          })
           .then((data) => {
-            // Expecting data.tasks to be an array.
             setSearchResults(data.tasks || []);
             setIsSearching(false);
           })
@@ -90,17 +102,13 @@ export default function CommonHeader() {
             setIsSearching(false);
           });
       } else {
-        // Clear results if query is empty or less than 2 characters.
         setSearchResults([]);
       }
     }, 300);
-
     return () => clearTimeout(delayDebounce);
   }, [searchQuery]);
 
-  // ------------------------------------------
-  // User profile fetching.
-  // ------------------------------------------
+  // Fetch user profile.
   useEffect(() => {
     async function fetchUser() {
       try {
@@ -109,6 +117,10 @@ export default function CommonHeader() {
         const res = await fetch("http://localhost:5000/api/users/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText);
+        }
         const data = await res.json();
         if (data?.message && data.message.toLowerCase().includes("jwt")) {
           localStorage.removeItem("token");
@@ -125,15 +137,11 @@ export default function CommonHeader() {
     fetchUser();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.push("/login");
-  };
-
-  // Toggle theme.
+  // Toggle theme and store the choice.
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -141,15 +149,24 @@ export default function CommonHeader() {
     }
   };
 
-  // Determine if logged in user is an admin.
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    router.push("/login");
+  };
+
   const isAdmin = user?.role?.toLowerCase() === "admin";
 
-  // Navigation items.
   const navigationItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     {
-      href: user?.role?.toLowerCase() === "student" ? "/dashboard/tasks" : "/task/MyAppliedTask",
-      label: user?.role?.toLowerCase() === "student" ? "My Tasks" : "My Applied Tasks",
+      href:
+        user?.role?.toLowerCase() === "student"
+          ? "/dashboard/tasks"
+          : "/task/MyAppliedTask",
+      label:
+        user?.role?.toLowerCase() === "student"
+          ? "My Tasks"
+          : "My Applied Tasks",
       icon: MessageSquare,
     },
     { href: "/dashboard/profile", label: "Profile", icon: User },
@@ -169,7 +186,6 @@ export default function CommonHeader() {
         }`}
       >
         <div className="container mx-auto px-4 py-3 max-w-7xl flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <Link href="/admin/dashboard">
               <div className="relative">
@@ -179,7 +195,6 @@ export default function CommonHeader() {
               </div>
             </Link>
           </div>
-          {/* Minimal Admin Controls */}
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -199,7 +214,11 @@ export default function CommonHeader() {
                     <Avatar className="h-8 w-8 ring-2 ring-primary/20">
                       {user && user.photo ? (
                         <AvatarImage
-                          src={user.photo.startsWith("http") ? user.photo : `http://localhost:5000${user.photo}`}
+                          src={
+                            user.photo.startsWith("http")
+                              ? user.photo
+                              : `http://localhost:5000${user.photo}`
+                          }
                           alt={user.name}
                         />
                       ) : (
@@ -225,7 +244,11 @@ export default function CommonHeader() {
                     <Avatar className="h-10 w-10">
                       {user && user.photo ? (
                         <AvatarImage
-                          src={user.photo.startsWith("http") ? user.photo : `http://localhost:5000${user.photo}`}
+                          src={
+                            user.photo.startsWith("http")
+                              ? user.photo
+                              : `http://localhost:5000${user.photo}`
+                          }
                           alt={user.name}
                         />
                       ) : (
@@ -378,7 +401,6 @@ export default function CommonHeader() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          {/* Only show dropdown if searching and there are results or if currently loading */}
           {(isSearching || searchResults.length > 0) && (
             <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg max-h-60 overflow-y-auto">
               {isSearching ? (
@@ -422,12 +444,8 @@ export default function CommonHeader() {
             onClick={() => router.push("/notifications")}
             className="h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-200 relative"
           >
-            <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500 animate-pulse">
-                {notificationCount}
-              </Badge>
-            )}
+            <MessageSquare className="h-5 w-5" />
+            {/* Removed badge for unread messages */}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -4,10 +4,10 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
+import Cookies from "js-cookie";
 import {
   Eye,
   EyeOff,
-  UserPlus,
   ArrowRight,
   AlertCircle,
   CheckCircle2,
@@ -18,8 +18,6 @@ import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -32,42 +30,57 @@ export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Registration fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Traditional registration uses radio group for role selection.
+
+  // Role selection (student/freelancer)
   const [role, setRole] = useState("student");
+
+  // Error and success messages
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  
-  // State for Google registration
+
+  // Google registration state
   const [googleCredential, setGoogleCredential] = useState<string | null>(null);
   const [showRolePopup, setShowRolePopup] = useState(false);
+
+  // Define backend URL (use env variable or default to localhost)
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   // Traditional registration form submit handler.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    console.log("Submitting registration form");
+
+    const payload = {
+      name: `${firstName} ${lastName}`,
+      email,
+      password,
+      role,
+    };
+    console.log("Payload to be sent:", payload);
 
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/register", {
-        name: `${firstName} ${lastName}`,
-        email,
-        password,
-        role,
+      const response = await axios.post(`${backendUrl}/api/auth/register`, payload, {
+        withCredentials: true,
       });
-      
+      console.log("Backend response:", response.data);
       localStorage.setItem("token", response.data.token);
+      Cookies.set("authToken", response.data.token, { expires: 1, path: "/" });
       setSuccess(true);
-      
+
       // Redirect after showing success message
       setTimeout(() => {
         router.push("/login");
       }, 2000);
-      
     } catch (err: any) {
+      console.error("Error during registration:", err.message, err.response?.data);
       setError(err.response?.data?.message || "Registration failed");
     } finally {
       setIsLoading(false);
@@ -76,6 +89,7 @@ export default function RegisterPage() {
 
   // Google registration success handler.
   const handleGoogleSuccess = (tokenResponse: any) => {
+    console.log("Google credential received:", tokenResponse.credential);
     setGoogleCredential(tokenResponse.credential);
     setShowRolePopup(true);
   };
@@ -90,14 +104,18 @@ export default function RegisterPage() {
     setIsLoading(true);
     setError("");
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/google", {
-        tokenId: googleCredential,
-        role: selectedRole,
-      });
+      const response = await axios.post(
+        `${backendUrl}/api/auth/google`,
+        { tokenId: googleCredential, role: selectedRole },
+        { withCredentials: true }
+      );
+      console.log("Google registration response:", response.data);
       localStorage.setItem("token", response.data.token);
+      Cookies.set("authToken", response.data.token, { expires: 1, path: "/" });
       setShowRolePopup(false);
       router.push(response.data.redirectTo || "/dashboard");
     } catch (err: any) {
+      console.error("Error during Google registration:", err.message, err.response?.data);
       setError(err.response?.data?.message || "Google registration failed");
     } finally {
       setIsLoading(false);
@@ -126,7 +144,7 @@ export default function RegisterPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
+
           {success && (
             <Alert className="mt-4 mx-4 bg-green-50 text-green-800 border-green-200">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -135,7 +153,7 @@ export default function RegisterPage() {
               </AlertDescription>
             </Alert>
           )}
-          
+
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-5 pt-6">
               <div className="grid grid-cols-2 gap-4">
@@ -166,7 +184,7 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email address
@@ -181,7 +199,7 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Password
@@ -205,30 +223,11 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-1 mt-1">
-                  <div
-                    className={`h-1 rounded-full ${
-                      password.length >= 8 ? "bg-green-500" : "bg-gray-200"
-                    }`}
-                  ></div>
-                  <div
-                    className={`h-1 rounded-full ${
-                      /[0-9]/.test(password) ? "bg-green-500" : "bg-gray-200"
-                    }`}
-                  ></div>
-                  <div
-                    className={`h-1 rounded-full ${
-                      /[^A-Za-z0-9]/.test(password)
-                        ? "bg-green-500"
-                        : "bg-gray-200"
-                    }`}
-                  ></div>
-                </div>
                 <p className="text-xs text-muted-foreground">
                   Must be at least 8 characters with a number and a special character
                 </p>
               </div>
-              
+
               <div className="space-y-3">
                 <Label className="text-sm font-medium">I am a</Label>
                 <RadioGroup
@@ -250,7 +249,7 @@ export default function RegisterPage() {
                   </div>
                 </RadioGroup>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Checkbox id="terms" required />
                 <Label htmlFor="terms" className="text-sm font-normal">
@@ -264,7 +263,7 @@ export default function RegisterPage() {
                   </Link>
                 </Label>
               </div>
-              
+
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-medium"
@@ -302,7 +301,7 @@ export default function RegisterPage() {
               </Button>
             </CardContent>
           </form>
-          
+
           <div className="px-6 pb-6">
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
@@ -314,7 +313,7 @@ export default function RegisterPage() {
                 </span>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-4">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
@@ -324,7 +323,7 @@ export default function RegisterPage() {
                 text="continue_with"
               />
             </div>
-            
+
             <p className="text-center text-sm text-muted-foreground mt-6">
               Already have an account?{" "}
               <Link
@@ -338,7 +337,6 @@ export default function RegisterPage() {
         </Card>
       </div>
 
-      {/* Modal Popup for Google registration role selection */}
       {showRolePopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 w-80">

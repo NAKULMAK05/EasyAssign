@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { jwtDecode } from "jwt-decode";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -30,17 +31,35 @@ export default function LandingPage() {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
 
-  // Check if a token exists immediately using useLayoutEffect instead of useEffect.
+  // Check token presence and expiration
   useLayoutEffect(() => {
     const storedToken =
       localStorage.getItem("token") ||
       localStorage.getItem("authToken") ||
       sessionStorage.getItem("token") ||
       sessionStorage.getItem("authToken");
-    // If token exists, redirect immediately to dashboard.
+
     if (storedToken) {
-      router.replace("/dashboard");
+      try {
+        const decoded = jwtDecode(storedToken);
+        const currentTime = Date.now() / 1000;
+        // If the token is expired, remove it and redirect to login
+        if (decoded?.exp && decoded.exp < currentTime) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("authToken");
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("authToken");
+          router.replace("/login");
+        } else {
+          // If valid, redirect to dashboard
+          router.replace("/dashboard");
+        }
+      } catch (error) {
+        console.error("Token decoding failed:", error);
+        router.replace("/login");
+      }
     } else {
+      // No token found, show the landing page
       setIsVisible(true);
     }
   }, [router]);
@@ -66,32 +85,38 @@ export default function LandingPage() {
     {
       icon: <Search className="h-6 w-6" />,
       title: "Smart Matching",
-      description: "Our algorithm connects you with the perfect freelancers based on your project requirements",
+      description:
+        "Our algorithm connects you with the perfect freelancers based on your project requirements",
     },
     {
       icon: <Shield className="h-6 w-6" />,
       title: "Secure Payments",
-      description: "Protected transactions with escrow system and milestone-based payments",
+      description:
+        "Protected transactions with escrow system and milestone-based payments",
     },
     {
       icon: <MessageSquare className="h-6 w-6" />,
       title: "Real-time Communication",
-      description: "Seamless collaboration with built-in messaging and file sharing",
+      description:
+        "Seamless collaboration with built-in messaging and file sharing",
     },
     {
       icon: <Award className="h-6 w-6" />,
       title: "Verified Talent",
-      description: "Thoroughly vetted professionals with verified skills and experience",
+      description:
+        "Thoroughly vetted professionals with verified skills and experience",
     },
     {
       icon: <Clock className="h-6 w-6" />,
       title: "Project Management",
-      description: "Built-in tools to track progress, manage milestones, and meet deadlines",
+      description:
+        "Built-in tools to track progress, manage milestones, and meet deadlines",
     },
     {
       icon: <TrendingUp className="h-6 w-6" />,
       title: "Business Insights",
-      description: "Detailed analytics to help optimize your freelance business or hiring strategy",
+      description:
+        "Detailed analytics to help optimize your freelance business or hiring strategy",
     },
   ];
 
@@ -116,13 +141,22 @@ export default function LandingPage() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
+              <a
+                href="#features"
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
                 Features
               </a>
-              <a href="#how-it-works" className="text-slate-600 hover:text-slate-900 transition-colors">
+              <a
+                href="#how-it-works"
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
                 How it Works
               </a>
-              <a href="#value-prop" className="text-slate-600 hover:text-slate-900 transition-colors">
+              <a
+                href="#value-prop"
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
                 Value
               </a>
             </div>
@@ -130,7 +164,10 @@ export default function LandingPage() {
             {/* Desktop CTA */}
             <div className="hidden md:flex items-center space-x-4">
               <Link href="/login">
-                <Button variant="ghost" className="text-slate-600 hover:text-slate-900">
+                <Button
+                  variant="ghost"
+                  className="text-slate-600 hover:text-slate-900"
+                >
                   Sign In
                 </Button>
               </Link>
@@ -149,7 +186,11 @@ export default function LandingPage() {
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                {mobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
               </Button>
             </div>
           </div>
@@ -186,7 +227,10 @@ export default function LandingPage() {
                 </a>
                 <div className="flex flex-col space-y-2 pt-2 border-t border-slate-200">
                   <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start text-slate-600 hover:text-slate-900">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-slate-600 hover:text-slate-900"
+                    >
                       Sign In
                     </Button>
                   </Link>
@@ -204,7 +248,10 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <motion.div style={{ y }} className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 opacity-50" />
+        <motion.div
+          style={{ y }}
+          className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 opacity-50"
+        />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -226,8 +273,9 @@ export default function LandingPage() {
                   For Your Projects
                 </h1>
                 <p className="text-lg text-slate-600 leading-relaxed">
-                  Access a global network of pre-vetted professionals ready to help with your projects. From development
-                  to design, marketing to management—find the perfect match for your needs.
+                  Access a global network of pre-vetted professionals ready to help
+                  with your projects. From development to design, marketing to
+                  management—find the perfect match for your needs.
                 </p>
               </div>
 
@@ -246,7 +294,9 @@ export default function LandingPage() {
               <div className="flex items-center space-x-2 pt-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-slate-600">Join the waitlist for early access</span>
+                  <span className="text-sm text-slate-600">
+                    Join the waitlist for early access
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -262,7 +312,9 @@ export default function LandingPage() {
                 <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-20 blur-xl" />
                 <div className="relative space-y-6">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Find the Perfect Match</h3>
+                    <h3 className="text-lg font-semibold">
+                      Find the Perfect Match
+                    </h3>
                     <Badge className="bg-green-100 text-green-700">New</Badge>
                   </div>
                   <div className="space-y-4">
@@ -271,8 +323,12 @@ export default function LandingPage() {
                         <Users className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">Web Development</div>
-                        <div className="text-sm text-slate-600">1,240+ available experts</div>
+                        <div className="font-medium">
+                          Web Development
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          1,240+ available experts
+                        </div>
                       </div>
                       <Button variant="ghost" size="sm">
                         <ArrowRight className="h-4 w-4" />
@@ -284,7 +340,9 @@ export default function LandingPage() {
                       </div>
                       <div className="flex-1">
                         <div className="font-medium">UI/UX Design</div>
-                        <div className="text-sm text-slate-600">860+ available experts</div>
+                        <div className="text-sm text-slate-600">
+                          860+ available experts
+                        </div>
                       </div>
                       <Button variant="ghost" size="sm">
                         <ArrowRight className="h-4 w-4" />
@@ -295,15 +353,19 @@ export default function LandingPage() {
                         <Zap className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">AI & Machine Learning</div>
-                        <div className="text-sm text-slate-600">420+ available experts</div>
+                        <div className="font-medium">
+                          AI & Machine Learning
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          420+ available experts
+                        </div>
                       </div>
                       <Button variant="ghost" size="sm">
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:from-blue-700 hover:to-purple-700 text-white">
                     Explore All Categories
                   </Button>
                 </div>
@@ -323,8 +385,12 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
             className="text-center space-y-4 mb-16"
           >
-            <Badge className="bg-blue-100 text-blue-700">Platform Features</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold">Powerful tools for seamless collaboration</h2>
+            <Badge className="bg-blue-100 text-blue-700">
+              Platform Features
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold">
+              Powerful tools for seamless collaboration
+            </h2>
             <p className="text-lg text-slate-600 max-w-3xl mx-auto">
               Our comprehensive platform provides everything you need to find talent, manage projects, and deliver exceptional results.
             </p>
@@ -486,7 +552,9 @@ export default function LandingPage() {
               <Card className="h-full hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-6 space-y-4">
                   <h3 className="text-xl font-semibold">For Freelancers</h3>
-                  <p className="text-slate-600">Find projects that match your skills and get paid securely.</p>
+                  <p className="text-slate-600">
+                    Find projects that match your skills and get paid securely.
+                  </p>
                 </CardContent>
               </Card>
             </motion.div>

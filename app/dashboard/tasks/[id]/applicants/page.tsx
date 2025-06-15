@@ -145,7 +145,7 @@ export default function ApplicantsPage() {
         )
         setApplicants(updatedApplicants)
       } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to fetch data")
+        //setError(err.response?.data?.message || "Failed to fetch data")
       } finally {
         setIsLoading(false)
       }

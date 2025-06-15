@@ -4,13 +4,33 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Bell, Globe, Lock, LogOut, Trash2, User, Loader2, AlertTriangle } from "lucide-react";
+import {
+  AlertCircle,
+  Bell,
+  Globe,
+  Lock,
+  LogOut,
+  Trash2,
+  User,
+  Loader2,
+  AlertTriangle,
+  BookOpen,
+  Lightbulb,
+  Sparkles,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import CommonHeader from "@/components/CommonHeader";
 import {
@@ -34,9 +54,10 @@ export default function SettingsPage() {
   // Settings states
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
   const [profileVisibility, setProfileVisibility] = useState("public");
+  // New privacy setting: Data Sharing
+  const [dataSharing, setDataSharing] = useState(true);
 
   // Two-factor authentication states
   const [tfaEnabled, setTfaEnabled] = useState(false);
@@ -59,9 +80,9 @@ export default function SettingsPage() {
         if (response.data.settings) {
           setEmailNotifications(response.data.settings.emailNotifications ?? true);
           setPushNotifications(response.data.settings.pushNotifications ?? true);
-          setDarkMode(response.data.settings.darkMode ?? false);
           setTwoFactorAuth(response.data.settings.twoFactorAuth ?? false);
           setProfileVisibility(response.data.settings.profileVisibility ?? "public");
+          setDataSharing(response.data.settings.dataSharing ?? true);
         }
         setTfaEnabled(response.data.twoFactorEnabled || false);
       } catch (err: any) {
@@ -81,9 +102,9 @@ export default function SettingsPage() {
         {
           emailNotifications,
           pushNotifications,
-          darkMode,
           twoFactorAuth,
           profileVisibility,
+          dataSharing,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -97,7 +118,6 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== "DELETE") return;
-
     setIsDeleting(true);
     try {
       const token = localStorage.getItem("token");
@@ -115,23 +135,20 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
-  // Remove specific tokens from localStorage
-  localStorage.removeItem("token");
-  localStorage.removeItem("authToken");
-  
-  // Remove specific tokens from sessionStorage
-  sessionStorage.removeItem("token");
-  sessionStorage.removeItem("authToken");
-  
-  // Optionally, clear all stored cookies
-  document.cookie.split(";").forEach((c) => {
-    document.cookie = c
-      .replace(/^ +/, "")
-      .replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`);
-  });
-  
-  router.push("/login");
-};
+    // Remove specific tokens from localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    // Remove specific tokens from sessionStorage
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("authToken");
+    // Optionally, clear all stored cookies
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`);
+    });
+    router.push("/login");
+  };
 
   // Resend email verification using the dedicated endpoint.
   const handleResendVerification = async () => {
@@ -199,59 +216,16 @@ export default function SettingsPage() {
 
   return (
     <>
-     <CommonHeader />
-    <div className="container max-w-screen-xl py-6 px-4 md:px-6">
-      <div className="flex flex-col space-y-6 md:space-y-0 md:flex-row md:gap-6">
-        <div className="md:w-1/4">
-          <Card className="shadow-md">
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Settings</h3>
-                <p className="text-sm text-muted-foreground">Manage your account settings and preferences</p>
-              </div>
-              <Separator className="my-4" />
-              <nav className="flex flex-col space-y-1">
-                <Button variant="ghost" className="justify-start">
-                  <User className="mr-2 h-4 w-4" />
-                  Account
-                </Button>
-                <Button variant="ghost" className="justify-start">
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notifications
-                </Button>
-                <Button variant="ghost" className="justify-start">
-                  <Lock className="mr-2 h-4 w-4" />
-                  Security
-                </Button>
-                <Button variant="ghost" className="justify-start">
-                  <Globe className="mr-2 h-4 w-4" />
-                  Appearance
-                </Button>
-              </nav>
-              <Separator className="my-4" />
-              <Button
-                variant="outline"
-                className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Account
-              </Button>
-              <Button variant="ghost" className="w-full justify-start mt-2" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log Out
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="md:w-3/4">
+      <CommonHeader />
+      <div className="container max-w-screen-xl py-6 px-4 md:px-6">
+        {/* Settings Content Without Left Side Navigation */}
+        <div className="w-full">
           <Tabs defaultValue="account" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-4 gap-2">
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
-              <TabsTrigger value="appearance">Appearance</TabsTrigger>
+              <TabsTrigger value="privacy">Privacy</TabsTrigger>
             </TabsList>
 
             {error && (
@@ -387,23 +361,42 @@ export default function SettingsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="appearance" className="mt-4 space-y-4">
+            <TabsContent value="privacy" className="mt-4 space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Appearance Settings</CardTitle>
-                  <CardDescription>Customize how the application looks</CardDescription>
+                  <CardTitle>Privacy Settings</CardTitle>
+                  <CardDescription>Control your data sharing preferences</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <div className="font-medium">Dark Mode</div>
-                      <div className="text-sm text-muted-foreground">Switch between light and dark themes</div>
+                      <div className="font-medium">Data Sharing</div>
+                      <div className="text-sm text-muted-foreground">
+                        Allow sharing of anonymous usage data for improvements
+                      </div>
                     </div>
-                    <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                    <Switch checked={dataSharing} onCheckedChange={setDataSharing} />
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button onClick={handleSaveSettings}>Save Changes</Button>
+                </CardFooter>
+              </Card>
+              {/* Delete Account option added in Privacy Section */}
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>Account Deletion</CardTitle>
+                  <CardDescription>Permanently delete your account and all associated data.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Warning: This action cannot be undone. Make sure to backup any important data.
+                  </p>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+                    Delete Account
+                  </Button>
                 </CardFooter>
               </Card>
             </TabsContent>
@@ -458,7 +451,6 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
     </>
   );
 }
