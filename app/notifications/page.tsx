@@ -26,7 +26,6 @@ import {
   EyeOff,
   Phone,
   Video,
-  Info,
   Bell,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -110,16 +109,27 @@ const getLastMessage = (conversation: Conversation, currentUserId: string): stri
   return `${prefix}${lastMessage.text}`;
 };
 
-// Updated getOtherUser to safely check properties and return a fallback if needed.
 const getOtherUser = (conversation: Conversation) => {
-  // If both client and freelancer exist, decide based on currentUserId.
   if (conversation.client && conversation.freelancer) {
     return String(conversation.client._id) === getCurrentUserId()
       ? conversation.freelancer
       : conversation.client;
   }
-  // Fallback to whichever exists.
   return conversation.client || conversation.freelancer || { _id: "", name: "User", photo: "" };
+};
+
+const getMessageStatusIcon = (status: string, isOwnMessage: boolean) => {
+  if (!isOwnMessage) return null;
+  switch (status) {
+    case "sent":
+      return <Check className="h-3 w-3 text-gray-400" />;
+    case "delivered":
+      return <CheckCheck className="h-3 w-3 text-gray-400" />;
+    case "read":
+      return <CheckCheck className="h-3 w-3 text-blue-500" />;
+    default:
+      return <Circle className="h-3 w-3 text-gray-400" />;
+  }
 };
 
 // ---------- Component ----------
@@ -186,29 +196,12 @@ export default function NotificationsPage() {
     }
   };
 
-  const getMessageStatusIcon = (status: string, isOwnMessage: boolean) => {
-    if (!isOwnMessage) return null;
-    switch (status) {
-      case "sent":
-        return <Check className="h-3 w-3 text-gray-400" />;
-      case "delivered":
-        return <CheckCheck className="h-3 w-3 text-gray-400" />;
-      case "read":
-        return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      default:
-        return <Circle className="h-3 w-3 text-gray-400" />;
-    }
-  };
-
   const getFilteredConversations = () => {
     let filtered = conversations.filter((conv) => {
       const otherUser = getOtherUser(conv);
-      // Safeguard: If otherUser or its name is missing, skip this conversation.
       if (!otherUser || !otherUser.name) return false;
       const search = searchQuery.toLowerCase();
-      const matchesSearch =
-        otherUser.name.toLowerCase().includes(search) ||
-        conv.task.title.toLowerCase().includes(search);
+      const matchesSearch = otherUser.name.toLowerCase().includes(search) || conv.task.title.toLowerCase().includes(search);
       if (!matchesSearch) return false;
       if (showOnlineOnly && !otherUser.online) return false;
       switch (activeTab) {
@@ -226,18 +219,14 @@ export default function NotificationsPage() {
     });
 
     filtered.sort((a, b) => {
-      // Important conversations come first.
       if (a.priority === "high" && b.priority !== "high") return -1;
       if (a.priority !== "high" && b.priority === "high") return 1;
-      // Then pinned conversations.
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      // Then sort based on sortBy preference.
       switch (sortBy) {
         case "unread":
           return b.unreadCount - a.unreadCount;
         case "name":
-          // Use optional chaining to safely compare names.
           return (getOtherUser(a)?.name || "").localeCompare(getOtherUser(b)?.name || "");
         default:
           const aTime = a.messages[a.messages.length - 1]?.timestamp || "";
@@ -256,7 +245,6 @@ export default function NotificationsPage() {
   const mutedCount = conversations.filter((conv) => conv.isMuted).length;
 
   // --- Action Handlers ---
-
   const handlePinConversation = async (convId: string, currentStatus: boolean) => {
     try {
       await axios.patch(
@@ -325,7 +313,6 @@ export default function NotificationsPage() {
 
   const handleToggleUnreadConversation = async (convId: string, currentUnreadCount: number) => {
     try {
-      // Toggle unread: if current is >0 mark as read; otherwise mark as unread (for demo purposes, we simply set count to 1).
       const newUnreadCount = currentUnreadCount > 0 ? 0 : 1;
       await axios.patch(
         `http://localhost:5000/api/conversations/${convId}`,
@@ -351,13 +338,13 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-black text-white border-b border-gray-800 sticky top-0 z-50">
+      <header className="bg-[#292828] dark:bg-gray-800 text-white border-b border-gray-700 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 max-w-6xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" asChild title="Back to Dashboard" className="rounded-full hover:bg-gray-800 text-white">
+              <Button variant="ghost" size="icon" asChild title="Back to Dashboard" className="rounded-full hover:bg-gray-700">
                 <Link href="/dashboard">
                   <ArrowLeft className="h-5 w-5" />
                   <span className="sr-only">Back to Dashboard</span>
@@ -374,34 +361,32 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild title="Filter and sort options">
-                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-800 text-white">
+                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-700 text-white">
                     <Filter className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setSortBy("recent")}>
+                <DropdownMenuContent align="end" className="w-48 bg-gray-800 text-gray-200 border border-gray-700">
+                  <DropdownMenuLabel className="px-3 py-1">Sort by</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setSortBy("recent")} className="px-3 py-1 hover:bg-gray-700">
                     <Clock className="mr-2 h-4 w-4" />
                     Recent
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("unread")}>
+                  <DropdownMenuItem onClick={() => setSortBy("unread")} className="px-3 py-1 hover:bg-gray-700">
                     <Bell className="mr-2 h-4 w-4" />
                     Unread
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("name")}>
+                  <DropdownMenuItem onClick={() => setSortBy("name")} className="px-3 py-1 hover:bg-gray-700">
                     <Users className="mr-2 h-4 w-4" />
                     Name
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <div className="flex items-center justify-between px-2 py-1.5">
+                  <DropdownMenuSeparator className="bg-gray-700" />
+                  <div className="flex items-center justify-between px-3 py-1">
                     <span className="text-sm">Online only</span>
-                    <div className="scale-75">
-                      <Switch checked={showOnlineOnly} onCheckedChange={setShowOnlineOnly} />
-                    </div>
+                    <Switch checked={showOnlineOnly} onCheckedChange={setShowOnlineOnly} className="scale-75" />
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="ghost" size="icon" title="Settings" className="rounded-full hover:bg-gray-800 text-white">
+              <Button variant="ghost" size="icon" title="Settings" className="rounded-full hover:bg-gray-700">
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
@@ -414,23 +399,23 @@ export default function NotificationsPage() {
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-900 border-gray-700 text-white placeholder:text-gray-400 focus:border-gray-600 rounded-full"
+              className="pl-10 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-gray-500 rounded-full"
             />
           </div>
         </div>
       </header>
       <main className="container mx-auto px-4 max-w-6xl">
         {/* Tabs */}
-        <div className="sticky top-[120px] bg-white z-40 py-4 border-b">
+        <div className="sticky top-[120px] bg-gray-50 dark:bg-gray-900 z-40 py-4 border-b border-gray-200 dark:border-gray-700">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-gray-100">
-              <TabsTrigger value="all" className="data-[state=active]:bg-black data-[state=active]:text-white">
+            <TabsList className="grid w-full grid-cols-5 bg-gray-200 dark:bg-gray-800">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[#292828] data-[state=active]:text-white">
                 All
                 <Badge variant="secondary" className="ml-1 h-4 text-xs">
                   {conversations.filter((c) => !c.isArchived).length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="unread" className="data-[state=active]:bg-black data-[state=active]:text-white">
+              <TabsTrigger value="unread" className="data-[state=active]:bg-[#292828] data-[state=active]:text-white">
                 Unread
                 {unreadCount > 0 && (
                   <Badge variant="destructive" className="ml-1 h-4 text-xs">
@@ -438,7 +423,7 @@ export default function NotificationsPage() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="pinned" className="data-[state=active]:bg-black data-[state=active]:text-white">
+              <TabsTrigger value="pinned" className="data-[state=active]:bg-[#292828] data-[state=active]:text-white">
                 Pinned
                 {pinnedCount > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 text-xs">
@@ -446,7 +431,7 @@ export default function NotificationsPage() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="archived" className="data-[state=active]:bg-black data-[state=active]:text-white">
+              <TabsTrigger value="archived" className="data-[state=active]:bg-[#292828] data-[state=active]:text-white">
                 Archived
                 {archivedCount > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 text-xs">
@@ -454,7 +439,7 @@ export default function NotificationsPage() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="muted" className="data-[state=active]:bg-black data-[state=active]:text-white">
+              <TabsTrigger value="muted" className="data-[state=active]:bg-[#292828] data-[state=active]:text-white">
                 Muted
                 {mutedCount > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 text-xs">
@@ -470,7 +455,7 @@ export default function NotificationsPage() {
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <div key={i} className="flex items-center gap-3 p-4 bg-gray-200 dark:bg-gray-700 rounded-lg">
                   <Skeleton className="h-12 w-12 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <div className="flex justify-between">
@@ -484,20 +469,20 @@ export default function NotificationsPage() {
               ))}
             </div>
           ) : filteredConversations.length === 0 ? (
-            <Card className="border-none shadow-none bg-gray-50">
+            <Card className="border-none shadow-none bg-gray-200 dark:bg-gray-700">
               <CardContent className="flex flex-col items-center justify-center py-16">
-                <div className="rounded-full bg-gray-100 p-4 mb-4">
-                  <MessageSquare className="h-8 w-8 text-gray-400" />
+                <div className="rounded-full bg-gray-300 dark:bg-gray-600 p-4 mb-4">
+                  <MessageSquare className="h-8 w-8 text-gray-600 dark:text-gray-300" />
                 </div>
-                <CardTitle className="text-xl mb-2 text-gray-900">
+                <CardTitle className="text-xl mb-2 text-gray-900 dark:text-gray-100">
                   {searchQuery ? "No conversations found" : "No messages yet"}
                 </CardTitle>
-                <CardDescription className="text-center max-w-md mb-6">
+                <CardDescription className="text-center max-w-md mb-6 text-gray-700 dark:text-gray-300">
                   {searchQuery
                     ? "Try adjusting your search terms or filters."
                     : "Start a conversation by posting a project or applying to one."}
                 </CardDescription>
-                <Button asChild className="bg-black hover:bg-gray-800">
+                <Button asChild className="bg-[#292828] hover:bg-gray-800 text-white">
                   <Link href="/dashboard">Back to Dashboard</Link>
                 </Button>
               </CardContent>
@@ -512,22 +497,22 @@ export default function NotificationsPage() {
                 return (
                   <div key={conv._id} className="relative group">
                     <div
-                      className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer transition-all duration-200 border ${
-                        isUnread
-                          ? "bg-gray-50 border-gray-200 hover:bg-gray-100"
-                          : "bg-white border-transparent hover:bg-gray-50 hover:border-gray-200"
-                      } ${conv.isPinned ? "ring-1 ring-gray-300" : ""}`}
+                      className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer transition-all duration-200 border 
+                      ${isUnread
+                        ? "bg-gray-300 dark:bg-gray-700 border-gray-400 dark:border-gray-600 hover:bg-gray-400 dark:hover:bg-gray-600"
+                        : "bg-gray-200 dark:bg-gray-800 border-transparent hover:bg-gray-300 dark:hover:bg-gray-700"} 
+                      ${conv.isPinned ? "ring-1 ring-gray-500" : ""}`}
                       onClick={() => router.push(`/notifications/chat/${conv._id}`)}
                     >
                       <div className="relative">
-                        <Avatar className={`h-12 w-12 ${isUnread ? "ring-2 ring-black" : "ring-1 ring-gray-200"}`}>
+                        <Avatar className={`h-12 w-12 ${isUnread ? "ring-2 ring-[#292828]" : "ring-1 ring-gray-400"}`}>
                           {otherUser?.photo ? (
                             <AvatarImage
                               src={otherUser.photo.startsWith("http") ? otherUser.photo : `http://localhost:5000${otherUser.photo}`}
                               alt={otherUser.name || "User"}
                             />
                           ) : (
-                            <AvatarFallback className="bg-gray-100 text-gray-600 font-medium">
+                            <AvatarFallback className="bg-gray-500 text-gray-100 font-medium">
                               {otherUser?.name ? otherUser.name.charAt(0).toUpperCase() : "U"}
                             </AvatarFallback>
                           )}
@@ -543,15 +528,15 @@ export default function NotificationsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
-                            <h3 className={`font-medium truncate ${isUnread ? "text-black" : "text-gray-900"}`}>
+                            <h3 className={`font-medium truncate ${isUnread ? "text-gray-900" : "text-gray-700 dark:text-gray-200"}`}>
                               {otherUser?.name || "User"}
                             </h3>
-                            {conv.isPinned && <Pin className="h-3 w-3 text-gray-400" />}
-                            {conv.isMuted && <VolumeX className="h-3 w-3 text-gray-400" />}
+                            {conv.isPinned && <Pin className="h-3 w-3 text-gray-500" />}
+                            {conv.isMuted && <VolumeX className="h-3 w-3 text-gray-500" />}
                           </div>
                           <div className="flex items-center gap-1">
                             {lastMessage && getMessageStatusIcon(lastMessage.status, isOwnLastMessage)}
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-600 dark:text-gray-300">
                               {lastMessage && formatTime(lastMessage.timestamp)}
                             </span>
                           </div>
@@ -559,25 +544,25 @@ export default function NotificationsPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             {conv.isTyping ? (
-                              <div className="flex items-center gap-1 text-green-600">
+                              <div className="flex items-center gap-1 text-green-500">
                                 <div className="flex gap-1">
-                                  <div className="w-1 h-1 bg-green-600 rounded-full animate-bounce"></div>
-                                  <div className="w-1 h-1 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                                  <div className="w-1 h-1 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                                  <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce"></div>
+                                  <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                                  <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
                                 </div>
                                 <span className="text-sm">typing...</span>
                               </div>
                             ) : (
-                              <p className={`text-sm truncate ${isUnread ? "font-medium text-gray-900" : "text-gray-600"}`}>
+                              <p className={`text-sm truncate ${isUnread ? "font-medium text-gray-900" : "text-gray-600 dark:text-gray-300"}`}>
                                 {getLastMessage(conv, currentUserId)}
                               </p>
                             )}
-                            <p className="text-xs text-gray-500 truncate mt-1">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">
                               Project: {conv.task?.title || "N/A"}
                             </p>
                           </div>
                           {isUnread && (
-                            <Badge className="bg-black text-white rounded-full h-5 min-w-5 flex items-center justify-center px-1.5 ml-2">
+                            <Badge className="bg-[#292828] text-white rounded-full h-5 min-w-5 flex items-center justify-center px-1.5 ml-2">
                               {conv.unreadCount}
                             </Badge>
                           )}
@@ -588,7 +573,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title={conv.isPinned ? "Unpin Conversation" : "Pin Conversation"}
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePinConversation(conv._id, conv.isPinned || false);
@@ -600,7 +585,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title={conv.isMuted ? "Unmute Conversation" : "Mute Conversation"}
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleMuteConversation(conv._id, conv.isMuted || false);
@@ -612,7 +597,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title={conv.priority === "high" ? "Unmark as Important" : "Mark as Important"}
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleMarkImportant(conv._id, conv.priority || "medium");
@@ -625,7 +610,7 @@ export default function NotificationsPage() {
                             variant="ghost"
                             size="icon"
                             title="Unarchive Conversation"
-                            className="h-8 w-8 rounded-full hover:bg-gray-200"
+                            className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleUnarchiveConversation(conv._id);
@@ -638,7 +623,7 @@ export default function NotificationsPage() {
                             variant="ghost"
                             size="icon"
                             title="Archive Conversation"
-                            className="h-8 w-8 rounded-full hover:bg-gray-200"
+                            className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleArchiveConversation(conv._id);
@@ -651,7 +636,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title="Delete Conversation"
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-red-500 hover:text-white"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteConversation(conv._id);
@@ -663,7 +648,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title={isUnread ? "Mark as Read" : "Mark as Unread"}
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleToggleUnreadConversation(conv._id, conv.unreadCount);
@@ -675,7 +660,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title="Call Conversation"
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                           onClick={(e) => {
                             e.stopPropagation();
                             // Quick call action placeholder.
@@ -687,7 +672,7 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           title="Video Call Conversation"
-                          className="h-8 w-8 rounded-full hover:bg-gray-200"
+                          className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600"
                           onClick={(e) => {
                             e.stopPropagation();
                             // Video call action placeholder.
@@ -697,34 +682,34 @@ export default function NotificationsPage() {
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild title="More Options" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-gray-200">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-gray-400 dark:hover:bg-gray-600">
                               <MoreVertical className="h-4 w-4" />
                               <span className="sr-only">More options</span>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuContent align="end" className="bg-gray-800 text-gray-200 border border-gray-700">
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="px-3 py-1 hover:bg-gray-700">
                               <Pin className="mr-2 h-4 w-4" />
                               {conv.isPinned ? "Unpin" : "Pin"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="px-3 py-1 hover:bg-gray-700">
                               {conv.isMuted ? <Volume2 className="mr-2 h-4 w-4" /> : <VolumeX className="mr-2 h-4 w-4" />}
                               {conv.isMuted ? "Unmute" : "Mute"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="px-3 py-1 hover:bg-gray-700">
                               <Star className="mr-2 h-4 w-4" />
                               Mark as Important
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="px-3 py-1 hover:bg-gray-700">
                               {isUnread ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
                               Mark as {isUnread ? "Read" : "Unread"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="px-3 py-1 hover:bg-gray-700">
                               <Archive className="mr-2 h-4 w-4" />
                               Archive
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="text-red-600 focus:text-red-600">
+                            <DropdownMenuSeparator className="bg-gray-700" />
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="px-3 py-1 text-red-500 hover:bg-red-600">
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
