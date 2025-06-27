@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import {
@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,7 +66,13 @@ export interface Task {
     name: string;
     photo?: string;
   };
-  acceptedBy?: string;
+  acceptedBy?: string[];
+  // Complex task flag.
+  allowMultiple?: boolean;
+  // projectDashboard field (not used for button visibility)
+  projectDashboard?: {
+    crewMembers?: string[];
+  };
 }
 
 // Extend Task to add a temporary _decision property for filtering/sorting.
@@ -76,20 +81,24 @@ interface ExtendedTask extends Task {
 }
 
 export default function MyAppliedTasks() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<ExtendedTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  // Sorting options: "recent", "titleAsc", "titleDesc", "budgetHigh", "budgetLow"
   const [sortOption, setSortOption] = useState("recent");
-  // statusFilter values: "all", "pending", "accepted", "rejected", "completed"
   const [statusFilter, setStatusFilter] = useState("all");
   const [withdrawingTaskId, setWithdrawingTaskId] = useState<string | null>(null);
   const [confirmWithdrawTaskId, setConfirmWithdrawTaskId] = useState<string | null>(null);
   const [withdrawErrorDialog, setWithdrawErrorDialog] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const router = useRouter();
+  // Fetch current user's ID from localStorage.
+  useEffect(() => {
+    const id = localStorage.getItem("userId");
+    setCurrentUserId(id);
+  }, []);
 
   // Fetch tasks the freelancer has applied to.
   const fetchAppliedTasks = async () => {
@@ -97,10 +106,10 @@ export default function MyAppliedTasks() {
     setError("");
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/tasks/applied", {
+      const response = await axios.get("http://localhost:5000/api/tasks/applied", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTasks(res.data.tasks);
+      setTasks(response.data.tasks);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to fetch applied tasks");
     } finally {
@@ -116,14 +125,13 @@ export default function MyAppliedTasks() {
   useEffect(() => {
     const userId = localStorage.getItem("userId")?.trim() || "";
     let updatedTasks: ExtendedTask[] = tasks.map((task) => {
-      // Find the current user's application in this task.
       const userApplication = task.applications?.find(
         (app) => app.applicant === userId
       );
       let decision: "pending" | "rejected" | "completed" = "pending";
       if (task.status === "completed") {
         decision = "completed";
-      } else if (task.acceptedBy && task.acceptedBy.toString() === userId) {
+      } else if (task.acceptedBy && task.acceptedBy.includes(userId)) {
         decision = "pending";
       } else if (userApplication?.decision === "declined") {
         decision = "rejected";
@@ -133,14 +141,12 @@ export default function MyAppliedTasks() {
       return { ...task, _decision: decision };
     });
 
-    // Apply status filter if not "all".
     if (statusFilter !== "all") {
       updatedTasks = updatedTasks.filter(
         (task) => task._decision === statusFilter
       );
     }
 
-    // Apply search filter.
     if (searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
       updatedTasks = updatedTasks.filter(
@@ -151,7 +157,6 @@ export default function MyAppliedTasks() {
       );
     }
 
-    // Apply sorting.
     if (sortOption === "recent") {
       updatedTasks.sort((a, b) =>
         new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
@@ -189,7 +194,6 @@ export default function MyAppliedTasks() {
     setFilteredTasks(updatedTasks);
   }, [searchTerm, sortOption, statusFilter, tasks]);
 
-  // Function to withdraw an application.
   const withdrawApplication = async (taskId: string) => {
     try {
       setWithdrawingTaskId(taskId);
@@ -197,7 +201,6 @@ export default function MyAppliedTasks() {
       await axios.delete(`http://localhost:5000/api/tasks/${taskId}/apply`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Remove the withdrawn task from the list.
       setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
     } catch (error: any) {
       if (
@@ -216,7 +219,6 @@ export default function MyAppliedTasks() {
     }
   };
 
-  // Format date for display.
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
@@ -227,7 +229,6 @@ export default function MyAppliedTasks() {
     });
   };
 
-  // Get status badge based on application decision.
   const getStatusBadge = (decision: string) => {
     switch (decision) {
       case "completed":
@@ -244,13 +245,18 @@ export default function MyAppliedTasks() {
     }
   };
 
-  // Calculate days remaining until deadline.
   const getDaysRemaining = (deadline: string) => {
     const deadlineDate = new Date(deadline);
     const today = new Date();
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
+  };
+
+  // Render the Project Dashboard button if the task is complex (allowMultiple is true)
+  // and if the current user's ID exists in the acceptedBy array.
+  const showProjectDashboard = (task: Task): boolean => {
+    return !!(task.allowMultiple && currentUserId && task.acceptedBy?.includes(currentUserId));
   };
 
   if (isLoading) {
@@ -421,7 +427,9 @@ export default function MyAppliedTasks() {
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Badge variant="outline" className="bg-primary/5">{task.category}</Badge>
+                    <Badge variant="outline" className="bg-primary/5">
+                      {task.category}
+                    </Badge>
                     {task.status && (
                       <Badge variant="secondary" className="bg-secondary/10">
                         {task.status}
@@ -433,10 +441,7 @@ export default function MyAppliedTasks() {
                   {task.client && (
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage
-                          src={task.client.photo || "/placeholder.svg"}
-                          alt={task.client.name}
-                        />
+                        <AvatarImage src={task.client.photo || "/placeholder.svg"} alt={task.client.name} />
                         <AvatarFallback>{task.client.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm text-muted-foreground">{task.client.name}</span>
@@ -466,6 +471,14 @@ export default function MyAppliedTasks() {
                     <Button size="sm" asChild>
                       <Link href={`/task/${task._id}`}>View Details</Link>
                     </Button>
+                    {/* Render the Project Dashboard button if allowMultiple is true and acceptedBy includes the current user */}
+                    
+                      <Button size="sm" variant="default" asChild>
+                        <Link href={`/dashboard/tasks/${task._id}/projectDashboard`}>
+                          Project Dashboard
+                        </Link>
+                      </Button>
+                
                   </div>
                 </CardFooter>
               </Card>
@@ -522,4 +535,38 @@ export default function MyAppliedTasks() {
       </div>
     </>
   );
+}
+
+function formatDate(dateString: string) {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function getDaysRemaining(deadline: string) {
+  const deadlineDate = new Date(deadline);
+  const today = new Date();
+  const diffTime = deadlineDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 0;
+}
+
+function getStatusBadge(decision: string) {
+  switch (decision) {
+    case "completed":
+      return <Badge className="bg-gray-500 text-white">Completed</Badge>;
+    case "rejected":
+      return <Badge className="bg-red-500 text-white">Rejected</Badge>;
+    case "pending":
+    default:
+      return (
+        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+          Pending
+        </Badge>
+      );
+  }
 }

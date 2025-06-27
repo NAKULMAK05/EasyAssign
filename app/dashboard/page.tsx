@@ -24,6 +24,7 @@ import {
   List,
   ArrowUpRight,
   Sparkles,
+  User,
 } from "lucide-react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import CommonHeader from "@/components/CommonHeader";
 
-// Define getStatusBadge at top-level so that it can be referenced in all child components.
 const getStatusBadge = (status: string | undefined) => {
   if (!status) return <Badge variant="outline">Unknown</Badge>;
   switch (status.toLowerCase()) {
@@ -78,21 +78,15 @@ interface Task {
   status: string;
   applicants: number;
   acceptedBy?: any;
+  // Field to indicate whether multiple freelancers can be accepted.
+  allowMultiple?: boolean;
   createdAt?: string;
-  client?: {
-    name: string;
-    avatar?: string;
-  };
-  postedBy?: {
-    name: string;
-    photo?: string;
-  };
+  client?: { name: string; avatar?: string };
+  postedBy?: { name: string; photo?: string };
 }
 
 export default function DashboardPage() {
   const router = useRouter();
-
-  // State management
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
@@ -101,8 +95,8 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-
-  // Form state for task creation
+  
+  // Create task form state
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -111,13 +105,12 @@ export default function DashboardPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [allowMultiple, setAllowMultiple] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
-
-  // User profile state
+  
   const [user, setUser] = useState<any>(null);
-
-  // Categories for filtering
+  
   const categories = [
     "all",
     "Web Development",
@@ -128,8 +121,7 @@ export default function DashboardPage() {
     "Data Science",
     "Other",
   ];
-
-  // Fetch user profile on mount
+  
   useEffect(() => {
     async function fetchUser() {
       try {
@@ -144,8 +136,7 @@ export default function DashboardPage() {
     }
     fetchUser();
   }, []);
-
-  // Fetch tasks on mount
+  
   useEffect(() => {
     async function fetchTasks() {
       setIsLoadingTasks(true);
@@ -164,8 +155,7 @@ export default function DashboardPage() {
     }
     fetchTasks();
   }, []);
-
-  // Filter and sort tasks
+  
   const filteredTasks = tasks
     .filter((task) => {
       const query = searchQuery.trim().toLowerCase();
@@ -189,29 +179,25 @@ export default function DashboardPage() {
       }
       return 0;
     });
-
+  
   const isClient = user?.role?.toLowerCase() === "student";
-
-  // Calculate real stats from actual data
   const totalTasks = tasks.length;
   const activeTasks = tasks.filter((t) => t.status?.toLowerCase() === "active").length;
   const avgBudget =
     totalTasks > 0 ? Math.round(tasks.reduce((acc, t) => acc + Number(t.budget), 0) / totalTasks) : 0;
   const totalCategories = new Set(tasks.map((t) => t.category)).size;
-
-  // Handle file selection
+  
   const handleFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setSelectedFiles((prevFiles) => [...prevFiles, ...filesArray]);
     }
   };
-
-  // Remove a file from selectedFiles
+  
   const removeFile = (index: number) => {
     setSelectedFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
-
+  
   const handleCreateTask = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsCreating(true);
@@ -238,6 +224,7 @@ export default function DashboardPage() {
       formData.append("deadline", newDeadline ? new Date(newDeadline).toISOString() : "");
       formData.append("contactEmail", contactEmail);
       formData.append("contactPhone", contactPhone);
+      formData.append("allowMultiple", allowMultiple ? "true" : "false");
       if (selectedFiles.length > 0) {
         selectedFiles.forEach((file) => {
           formData.append("images", file);
@@ -249,7 +236,6 @@ export default function DashboardPage() {
       alert("Task created successfully!");
       setIsCreateDialogOpen(false);
       setTasks((prev) => [response.data.task, ...prev]);
-      // Reset form
       setNewTitle("");
       setNewDescription("");
       setNewCategory("");
@@ -258,28 +244,24 @@ export default function DashboardPage() {
       setContactEmail("");
       setContactPhone("");
       setSelectedFiles([]);
+      setAllowMultiple(false);
     } catch (err: any) {
       setCreateError(err.response?.data?.message || "Failed to create task");
     } finally {
       setIsCreating(false);
     }
   };
-
-  // TaskCard component
+  
   function TaskCard({ task }: { task: Task }) {
     const formatDate = (dateString: string) => {
       try {
         const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
+        return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       } catch (e) {
         return dateString;
       }
     };
-
+  
     const getTimeAgo = (dateString: string) => {
       try {
         const date = new Date(dateString);
@@ -294,8 +276,7 @@ export default function DashboardPage() {
         return "Recently";
       }
     };
-
-    // Use postedBy for client details
+  
     const clientName = task.postedBy?.name || "Client";
     const clientPhoto =
       task.postedBy?.photo && task.postedBy.photo.length > 0
@@ -303,16 +284,20 @@ export default function DashboardPage() {
           ? task.postedBy.photo
           : `http://localhost:5000${task.postedBy.photo}`
         : "";
-
+  
+    // Check if task.allowMultiple is true then show multiple freelancers icon, otherwise single freelancer icon.
+    const freelancerIcon = task.allowMultiple ? (
+      <Users className="w-4 h-4" />
+    ) : (
+      <User className="w-4 h-4" />
+    );
+  
     return (
       <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 hover:from-card hover:via-accent/5 hover:to-primary/5 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2">
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-        {/* Animated border */}
         <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm" />
         <div className="absolute inset-[1px] rounded-lg bg-card" />
-
+  
         <CardHeader className="pb-3 relative z-10">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -331,19 +316,18 @@ export default function DashboardPage() {
                 </Avatar>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-foreground">{clientName}</span>
-                  <span className="text-xs text-muted-foreground">{getTimeAgo(task.createdAt || "")}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {getTimeAgo(task.createdAt || "")}
+                  </span>
                 </div>
               </div>
             </div>
             {getStatusBadge(task.status)}
           </div>
         </CardHeader>
-
+  
         <CardContent className="pb-4 relative z-10">
-          <p className="text-muted-foreground text-sm line-clamp-3 leading-relaxed mb-4">
-            {task.description}
-          </p>
-
+          <p className="text-muted-foreground text-sm line-clamp-3 leading-relaxed mb-4">{task.description}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
               <div className="p-2 rounded-lg bg-emerald-500/10">
@@ -360,12 +344,14 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Deadline</p>
-                <p className="font-bold text-blue-700 dark:text-blue-300 text-sm">{formatDate(task.deadline)}</p>
+                <p className="font-bold text-blue-700 dark:text-blue-300 text-sm">
+                  {formatDate(task.deadline)}
+                </p>
               </div>
             </div>
           </div>
         </CardContent>
-
+  
         <CardFooter className="flex justify-between items-center pt-4 border-t border-border/50 bg-gradient-to-r from-muted/30 to-muted/10 relative z-10">
           <div className="flex items-center gap-3">
             <Badge
@@ -400,25 +386,24 @@ export default function DashboardPage() {
                 View
               </Link>
             </Button>
+            <div className="flex items-center" title={task.allowMultiple ? "Multiple freelancers required" : "Single freelancer required"}>
+              {freelancerIcon}
+            </div>
           </div>
         </CardFooter>
       </Card>
     );
   }
-
+  
   return (
     <>
       <CommonHeader />
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 dark:from-background dark:via-slate-950/50 dark:to-purple-950/20">
-        {/* Main Content */}
         <main className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
-          {/* Hero Section */}
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-purple-500/10 to-pink-500/10 dark:from-primary/20 dark:via-purple-500/20 dark:to-pink-500/10 p-8 md:p-12">
-            {/* Background decoration */}
             <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-500/20 to-orange-500/20 rounded-full blur-3xl" />
-
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
@@ -445,10 +430,7 @@ export default function DashboardPage() {
               {isClient && (
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button
-                      size="lg"
-                      className="h-14 px-8 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-xl hover:shadow-2xl transition-all duration-300 text-lg"
-                    >
+                    <Button size="lg" className="h-14 px-8 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-xl hover:shadow-2xl transition-all duration-300 text-lg">
                       <Plus className="h-5 w-5 mr-2" />
                       Create New Task
                       <ArrowUpRight className="h-4 w-4 ml-2" />
@@ -464,26 +446,13 @@ export default function DashboardPage() {
                           <Label htmlFor="newTitle" className="text-sm font-medium">
                             Task Title *
                           </Label>
-                          <Input
-                            id="newTitle"
-                            placeholder="Enter a compelling task title"
-                            required
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            className="mt-2 h-12"
-                          />
+                          <Input id="newTitle" placeholder="Enter a compelling task title" required value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="mt-2 h-12" />
                         </div>
                         <div className="md:col-span-2">
                           <Label htmlFor="newDescription" className="text-sm font-medium">
                             Description
                           </Label>
-                          <Textarea
-                            id="newDescription"
-                            placeholder="Describe your task in detail..."
-                            value={newDescription}
-                            onChange={(e) => setNewDescription(e.target.value)}
-                            className="mt-2 min-h-[120px]"
-                          />
+                          <Textarea id="newDescription" placeholder="Describe your task in detail..." value={newDescription} onChange={(e) => setNewDescription(e.target.value)} className="mt-2 min-h-[120px]" />
                         </div>
                         <div>
                           <Label htmlFor="newCategory" className="text-sm font-medium">
@@ -506,72 +475,56 @@ export default function DashboardPage() {
                           <Label htmlFor="newBudget" className="text-sm font-medium">
                             Budget ($) *
                           </Label>
-                          <Input
-                            id="newBudget"
-                            type="number"
-                            placeholder="Enter budget"
-                            required
-                            value={newBudget}
-                            onChange={(e) => setNewBudget(e.target.value)}
-                            className="h-12 mt-2"
-                          />
+                          <Input id="newBudget" type="number" placeholder="Enter budget" required value={newBudget} onChange={(e) => setNewBudget(e.target.value)} className="h-12 mt-2" />
                         </div>
                         <div>
                           <Label htmlFor="newDeadline" className="text-sm font-medium">
                             Deadline
                           </Label>
-                          <Input
-                            id="newDeadline"
-                            type="date"
-                            value={newDeadline}
-                            onChange={(e) => setNewDeadline(e.target.value)}
-                            className="h-12 mt-2"
-                          />
+                          <Input id="newDeadline" type="date" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} className="h-12 mt-2" />
                         </div>
                         <div>
                           <Label htmlFor="contactEmail" className="text-sm font-medium">
                             Contact Email
                           </Label>
-                          <Input
-                            id="contactEmail"
-                            type="email"
-                            placeholder="your@email.com"
-                            value={contactEmail}
-                            onChange={(e) => setContactEmail(e.target.value)}
-                            className="h-12 mt-2"
-                          />
+                          <Input id="contactEmail" type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className="h-12 mt-2" />
+                        </div>
+                        <div>
+                          <Label htmlFor="contactPhone" className="text-sm font-medium">
+                            Contact Phone
+                          </Label>
+                          <Input id="contactPhone" type="text" placeholder="Enter phone number" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className="h-12 mt-2" />
                         </div>
                         <div className="md:col-span-2">
                           <Label htmlFor="imageUpload" className="text-sm font-medium">
                             Attach Images
                           </Label>
-                          <Input
-                            id="imageUpload"
-                            type="file"
-                            multiple
-                            onChange={(e) => handleFilesChange(e)}
-                            className="mt-2 h-12"
-                          />
+                          <Input id="imageUpload" type="file" multiple onChange={(e) => handleFilesChange(e)} className="mt-2 h-12" />
                           {selectedFiles.length > 0 && (
                             <div className="mt-2 grid grid-cols-3 gap-2">
                               {selectedFiles.map((file, index) => (
                                 <div key={index} className="relative">
-                                  <img
-                                    src={URL.createObjectURL(file)}
-                                    alt={`preview ${index}`}
-                                    className="w-full h-20 object-cover rounded-md"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => removeFile(index)}
-                                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                                  >
+                                  <img src={URL.createObjectURL(file)} alt={`preview ${index}`} className="w-full h-20 object-cover rounded-md" />
+                                  <button type="button" onClick={() => removeFile(index)} className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
                                     ×
                                   </button>
                                 </div>
                               ))}
                             </div>
                           )}
+                        </div>
+                        {/* Checkbox to allow multiple freelancers */}
+                        <div className="md:col-span-2 flex items-center gap-2">
+                          <Label htmlFor="allowMultiple" className="text-sm font-medium">
+                            Allow multiple freelancers to apply
+                          </Label>
+                          <input
+                            id="allowMultiple"
+                            type="checkbox"
+                            checked={allowMultiple}
+                            onChange={(e) => setAllowMultiple(e.target.checked)}
+                            className="h-5 w-5"
+                          />
                         </div>
                       </div>
                       {createError && (
@@ -600,7 +553,7 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-
+  
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/50 dark:border-blue-800/30 hover:shadow-xl transition-all duration-300">
@@ -615,7 +568,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Card>
-
+  
             <Card className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/30 hover:shadow-xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
@@ -628,7 +581,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Card>
-
+  
             <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200/50 dark:border-purple-800/30 hover:shadow-xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
@@ -641,7 +594,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Card>
-
+  
             <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 border-orange-200/50 dark:border-orange-800/30 hover:shadow-xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
@@ -655,19 +608,14 @@ export default function DashboardPage() {
               </div>
             </Card>
           </div>
-
+  
           {/* Filters Section */}
           <Card className="p-6 bg-gradient-to-r from-card via-card to-muted/20 border-border/50">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               <div className="flex flex-col sm:flex-row gap-4 flex-1">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tasks, categories, or keywords..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 bg-background/50 border-border/50 focus:bg-background focus:border-primary/50"
-                  />
+                  <Input placeholder="Search tasks, categories, or keywords..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-12 bg-background/50 border-border/50 focus:bg-background focus:border-primary/50" />
                 </div>
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                   <SelectTrigger className="w-full sm:w-48 h-12 bg-background/50 border-border/50">
@@ -695,28 +643,17 @@ export default function DashboardPage() {
                   </SelectContent>
                 </Select>
                 <div className="flex gap-1 p-1 bg-muted rounded-lg">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="h-10 w-10 p-0"
-                  >
+                  <Button variant={viewMode === "grid" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("grid")} className="h-10 w-10 p-0">
                     <Grid3X3 className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="h-10 w-10 p-0"
-                  >
+                  <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("list")} className="h-10 w-10 p-0">
                     <List className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </div>
           </Card>
-
-          {/* Tasks Content */}
+  
           {isLoadingTasks ? (
             <Card className="p-16 text-center bg-gradient-to-br from-card to-muted/20">
               <div className="flex flex-col items-center gap-6">

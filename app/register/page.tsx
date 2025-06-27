@@ -81,7 +81,7 @@ export default function RegisterPage() {
       }, 2000);
     } catch (err: any) {
       console.error("Error during registration:", err.message, err.response?.data);
-      setError(err.response?.data?.message || "Registration failed");
+      setError(err.response?.data?.error || "Registration failed");
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +116,7 @@ export default function RegisterPage() {
       router.push(response.data.redirectTo || "/dashboard");
     } catch (err: any) {
       console.error("Error during Google registration:", err.message, err.response?.data);
-      setError(err.response?.data?.message || "Google registration failed");
+      setError(err.response?.data?.error || "Google registration failed");
     } finally {
       setIsLoading(false);
     }

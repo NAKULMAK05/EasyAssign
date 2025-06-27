@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import CommonHeader from "@/components/CommonHeader";
+
 
 export const metadata: Metadata = {
   title: "TaskHub",

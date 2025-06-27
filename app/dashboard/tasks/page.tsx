@@ -71,6 +71,8 @@ interface Task {
   applicants?: number;
   applications?: any[];
   createdAt?: string;
+  // New flag denoting if multiple freelancers may be assigned (complex project).
+  allowMultiple?: boolean;
 }
 
 export default function MyTasksPage() {
@@ -308,7 +310,7 @@ export default function MyTasksPage() {
     <>
       <CommonHeader />
       <div className="container max-w-screen-xl py-8 px-4 md:px-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">My Tasks</h1>
             <p className="text-muted-foreground mt-1">Manage and track your posted tasks</p>
@@ -683,46 +685,61 @@ function TaskCard({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-2 border-t flex justify-between items-center">
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">More options</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href={`/task/edit/${task._id}`} className="flex items-center cursor-pointer">
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Task
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Task
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button size="sm" asChild>
-            <Link href={`/task/${task._id}`}>View Details</Link>
-          </Button>
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/dashboard/tasks/${task._id}/applicants`}>
-              <Users className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Applicants</span>
-            </Link>
-          </Button>
-        </div>
-        {task.status !== "completed" && (
-          <Button variant="ghost" size="icon" onClick={onMarkComplete} title="Mark as complete">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-          </Button>
-        )}
-      </CardFooter>
+      <CardFooter className="pt-2 border-t flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+  {/* Left section: Actions and navigation */}
+  <div className="flex flex-wrap gap-2 items-center">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">More options</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={`/task/edit/${task._id}`} className="flex items-center cursor-pointer">
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Task
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete Task
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+
+    <Button size="sm" asChild>
+      <Link href={`/task/${task._id}`}>View Details</Link>
+    </Button>
+
+    <Button size="sm" variant="outline" asChild>
+      <Link href={`/dashboard/tasks/${task._id}/applicants`}>
+        <Users className="mr-2 h-4 w-4" />
+        <span className="hidden sm:inline">Applicants</span>
+      </Link>
+    </Button>
+
+    {task.allowMultiple && (
+      <Button size="sm" variant="default" asChild>
+        <Link href={`/dashboard/tasks/${task._id}/projectDashboard`}>
+          Project Dashboard
+        </Link>
+      </Button>
+    )}
+  </div>
+
+  {/* Right section: Completion button */}
+  {task.status !== "completed" && (
+    <div className="flex justify-end">
+      <Button variant="ghost" size="icon" onClick={onMarkComplete} title="Mark as complete">
+        <CheckCircle className="h-5 w-5 text-green-500" />
+      </Button>
+    </div>
+  )}
+</CardFooter>
     </Card>
   );
 }

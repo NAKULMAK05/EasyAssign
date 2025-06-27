@@ -56,11 +56,11 @@ const formatDate = (dateString: string) => {
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "open":
-      return <Badge className="bg-green-500 text-white">Open</Badge>;
+      return <Badge className="bg-green-500 text-white dark:bg-green-700">Open</Badge>;
     case "in-progress":
-      return <Badge className="bg-blue-500 text-white">In Progress</Badge>;
+      return <Badge className="bg-blue-500 text-white dark:bg-blue-700">In Progress</Badge>;
     case "completed":
-      return <Badge className="bg-gray-500 text-white">Completed</Badge>;
+      return <Badge className="bg-gray-500 text-white dark:bg-gray-700">Completed</Badge>;
     default:
       return <Badge>{status}</Badge>;
   }
@@ -200,19 +200,19 @@ export default function TaskDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center">
+      <div className="min-h-[80vh] flex flex-col items-center justify-center dark:bg-black">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Loading task details...</p>
+        <p className="text-lg text-gray-600 dark:text-white">Loading task details...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <Alert variant="destructive" className="max-w-2xl mx-auto">
+      <div className="container mx-auto px-4 py-12 dark:bg-black">
+        <Alert variant="destructive" className="max-w-2xl mx-auto dark:bg-black dark:border-white">
           <AlertCircle className="h-5 w-5" />
-          <AlertDescription className="text-lg">{error}</AlertDescription>
+          <AlertDescription className="text-lg text-white">{error}</AlertDescription>
         </Alert>
         <div className="flex justify-center mt-6">
           <Button onClick={() => router.back()} className="flex items-center gap-2">
@@ -226,11 +226,11 @@ export default function TaskDetailsPage() {
 
   if (!task) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <div className="max-w-2xl mx-auto bg-muted/30 rounded-lg p-12">
-          <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Task Not Found</h2>
-          <p className="text-muted-foreground mb-6">
+      <div className="container mx-auto px-4 py-12 text-center dark:bg-black">
+        <div className="max-w-2xl mx-auto bg-gray-100 dark:bg-black rounded-lg p-12">
+          <AlertCircle className="h-16 w-16 text-gray-400 dark:text-white mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Task Not Found</h2>
+          <p className="text-gray-600 dark:text-white mb-6">
             The task you're looking for doesn't exist or has been removed.
           </p>
           <Button onClick={() => router.back()} className="flex items-center gap-2">
@@ -243,22 +243,22 @@ export default function TaskDetailsPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen pb-12">
+    <div className="bg-gradient-to-b from-gray-50 to-white dark:from-black dark:to-black min-h-screen pb-12">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b sticky top-0 z-10 shadow-sm">
+      <header className="bg-white dark:bg-black border-b sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
             <ChevronLeft className="h-5 w-5" />
-            <span className="hidden sm:inline">Back</span>
+            <span className="hidden sm:inline text-gray-700 dark:text-white">Back</span>
           </Button>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={handleSaveTask} className="flex items-center gap-1">
-              <Bookmark className="h-5 w-5" />
-              <span>{isSaved ? "Saved" : "Save"}</span>
+            <Button variant="outline" size="sm" onClick={handleSaveTask} className="flex items-center gap-1 border-gray-300 dark:border-white">
+              <Bookmark className="h-5 w-5 text-gray-700 dark:text-white" />
+              <span className="text-gray-700 dark:text-white">{isSaved ? "Saved" : "Save"}</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleShareTask} className="flex items-center gap-1">
-              <Share2 className="h-5 w-5" />
-              <span>Share</span>
+            <Button variant="outline" size="sm" onClick={handleShareTask} className="flex items-center gap-1 border-gray-300 dark:border-white">
+              <Share2 className="h-5 w-5 text-gray-700 dark:text-white" />
+              <span className="text-gray-700 dark:text-white">Share</span>
             </Button>
           </div>
         </div>
@@ -271,15 +271,15 @@ export default function TaskDetailsPage() {
           <div className="lg:col-span-2 space-y-8">
             <div>
               <div className="flex items-center gap-4 mb-3">
-                <Badge variant="outline" className="text-sm font-medium">
+                <Badge variant="outline" className="text-sm font-medium dark:bg-black dark:text-white">
                   {task.category}
                 </Badge>
                 {getStatusBadge(task.status || "open")}
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-gray-800 dark:text-white">
                 {task.title}
               </h1>
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+              <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-white">
                 <div className="flex items-center gap-1">
                   <Calendar className="h-5 w-5" />
                   <span>Posted on {formatDate(task.createdAt)}</span>
@@ -298,18 +298,18 @@ export default function TaskDetailsPage() {
             {/* Tabs for Task Content */}
             <Tabs defaultValue="description" className="w-full">
               <TabsList className="grid grid-cols-3 gap-2 mb-6">
-                <TabsTrigger value="description" className="px-4 py-2 rounded-md">
+                <TabsTrigger value="description" className="px-4 py-2 rounded-md text-gray-700 dark:text-white">
                   Description
                 </TabsTrigger>
-                <TabsTrigger value="images" className="px-4 py-2 rounded-md">
+                <TabsTrigger value="images" className="px-4 py-2 rounded-md text-gray-700 dark:text-white">
                   Images
                 </TabsTrigger>
-                <TabsTrigger value="details" className="px-4 py-2 rounded-md">
+                <TabsTrigger value="details" className="px-4 py-2 rounded-md text-gray-700 dark:text-white">
                   Details
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="description" className="space-y-6">
-                <Card className="shadow-md">
+                <Card className="shadow-md dark:bg-black dark:border-white">
                   <CardContent className="p-6">
                     <div className="prose dark:prose-invert max-w-none">
                       <p className="text-lg leading-relaxed whitespace-pre-line">
@@ -319,9 +319,9 @@ export default function TaskDetailsPage() {
                   </CardContent>
                 </Card>
                 {task.skills && task.skills.length > 0 && (
-                  <Card className="shadow-md">
+                  <Card className="shadow-md dark:bg-black dark:border-white">
                     <CardHeader className="px-6 pt-6">
-                      <CardTitle className="text-xl">Required Skills</CardTitle>
+                      <CardTitle className="text-xl text-gray-800 dark:text-white">Required Skills</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 pt-0">
                       <div className="flex flex-wrap gap-3">
@@ -329,7 +329,7 @@ export default function TaskDetailsPage() {
                           <Badge
                             key={index}
                             variant="secondary"
-                            className="px-3 py-1 text-sm"
+                            className="px-3 py-1 text-sm dark:bg-black dark:text-white border dark:border-white"
                           >
                             {skill}
                           </Badge>
@@ -340,21 +340,19 @@ export default function TaskDetailsPage() {
                 )}
               </TabsContent>
               <TabsContent value="images">
-                <Card className="shadow-md overflow-hidden">
+                <Card className="shadow-md overflow-hidden dark:bg-black dark:border-white">
                   <CardHeader className="px-6 pt-6">
-                    <CardTitle className="text-xl">Task Images</CardTitle>
-                    <CardDescription className="mt-1">
+                    <CardTitle className="text-xl text-gray-800 dark:text-white">Task Images</CardTitle>
+                    <CardDescription className="mt-1 text-gray-600 dark:text-white">
                       {task.images && task.images.length > 0
-                        ? `${task.images.length} ${
-                            task.images.length > 1 ? "images" : "image"
-                          } attached`
+                        ? `${task.images.length} ${task.images.length > 1 ? "images" : "image"} attached`
                         : "No images attached"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-6 pt-4">
                     {task.images && task.images.length > 0 ? (
                       <div className="space-y-4">
-                        <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                        <div className="relative aspect-video bg-gray-100 dark:bg-black rounded-lg overflow-hidden">
                           <img
                             src={
                               task.images[activeImageIndex].startsWith("http")
@@ -369,7 +367,7 @@ export default function TaskDetailsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2"
+                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black text-white rounded-full p-2"
                                 onClick={prevImage}
                               >
                                 <ChevronLeft className="h-5 w-5" />
@@ -377,7 +375,7 @@ export default function TaskDetailsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black text-white rounded-full p-2"
                                 onClick={nextImage}
                               >
                                 <ChevronRight className="h-5 w-5" />
@@ -389,13 +387,13 @@ export default function TaskDetailsPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="absolute bottom-4 right-4 bg-black/30 text-white rounded-md px-3 py-1"
+                                className="absolute bottom-4 right-4 bg-black text-white rounded-md px-3 py-1"
                               >
                                 <ExternalLink className="h-4 w-4 mr-2" />
                                 View Full Size
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] p-0 overflow-hidden">
+                            <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] p-0 overflow-hidden dark:bg-black">
                               <DialogTitle className="sr-only">Full Size Image</DialogTitle>
                               <div className="relative w-full h-full">
                                 <img
@@ -438,57 +436,57 @@ export default function TaskDetailsPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="text-center py-12 bg-gray-50 rounded-lg">
-                        <ImageIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-500">No images have been uploaded</p>
+                      <div className="text-center py-12 bg-gray-50 dark:bg-black rounded-lg">
+                        <ImageIcon className="h-12 w-12 mx-auto text-gray-400 dark:text-white mb-4" />
+                        <p className="text-gray-500 dark:text-white">No images have been uploaded</p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
               <TabsContent value="details" className="space-y-6">
-                <Card className="shadow-md">
+                <Card className="shadow-md dark:bg-black dark:border-white">
                   <CardHeader className="px-6 pt-6">
-                    <CardTitle className="text-xl">Task Details</CardTitle>
+                    <CardTitle className="text-xl text-gray-800 dark:text-white">Task Details</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 pt-0 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-md">
+                        <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                           <DollarSign className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Budget</p>
-                          <p className="text-lg font-semibold">${task.budget}</p>
+                          <p className="text-sm text-gray-500 dark:text-white">Budget</p>
+                          <p className="text-lg font-semibold text-gray-800 dark:text-white">${task.budget}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-md">
+                        <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                           <Tag className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Category</p>
-                          <p className="text-lg font-semibold">{task.category}</p>
+                          <p className="text-sm text-gray-500 dark:text-white">Category</p>
+                          <p className="text-lg font-semibold text-gray-800 dark:text-white">{task.category}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-md">
+                        <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                           <Clock className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Deadline</p>
-                          <p className="text-lg font-semibold">
+                          <p className="text-sm text-gray-500 dark:text-white">Deadline</p>
+                          <p className="text-lg font-semibold text-gray-800 dark:text-white">
                             {formatDate(task.deadline)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-md">
+                        <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                           <Calendar className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Posted On</p>
-                          <p className="text-lg font-semibold">
+                          <p className="text-sm text-gray-500 dark:text-white">Posted On</p>
+                          <p className="text-lg font-semibold text-gray-800 dark:text-white">
                             {formatDate(task.createdAt)}
                           </p>
                         </div>
@@ -496,39 +494,39 @@ export default function TaskDetailsPage() {
                     </div>
                     {task.location && (
                       <div className="flex items-center gap-3 mt-4">
-                        <div className="bg-gray-100 p-2 rounded-md">
+                        <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                           <MapPin className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Location</p>
-                          <p className="text-lg font-semibold">{task.location}</p>
+                          <p className="text-sm text-gray-500 dark:text-white">Location</p>
+                          <p className="text-lg font-semibold text-gray-800 dark:text-white">{task.location}</p>
                         </div>
                       </div>
                     )}
                     {(task.contactEmail || task.contactPhone) && (
                       <>
                         <Separator className="my-4" />
-                        <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">Contact Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {task.contactEmail && (
                             <div className="flex items-center gap-3">
-                              <div className="bg-gray-100 p-2 rounded-md">
+                              <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                                 <Mail className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <p className="text-sm text-gray-500">Email</p>
-                                <p className="text-lg font-semibold">{task.contactEmail}</p>
+                                <p className="text-sm text-gray-500 dark:text-white">Email</p>
+                                <p className="text-lg font-semibold text-gray-800 dark:text-white">{task.contactEmail}</p>
                               </div>
                             </div>
                           )}
                           {task.contactPhone && (
                             <div className="flex items-center gap-3">
-                              <div className="bg-gray-100 p-2 rounded-md">
+                              <div className="bg-gray-100 dark:bg-black p-2 rounded-md">
                                 <Phone className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <p className="text-sm text-gray-500">Phone</p>
-                                <p className="text-lg font-semibold">{task.contactPhone}</p>
+                                <p className="text-sm text-gray-500 dark:text-white">Phone</p>
+                                <p className="text-lg font-semibold text-gray-800 dark:text-white">{task.contactPhone}</p>
                               </div>
                             </div>
                           )}
@@ -541,20 +539,20 @@ export default function TaskDetailsPage() {
             </Tabs>
 
             {/* Task Progress Section */}
-            <Card className="shadow-md">
-              <CardHeader className="px-6 py-4 bg-gray-50">
-                <CardTitle className="text-xl">Task Progress</CardTitle>
+            <Card className="shadow-md dark:bg-black dark:border-white">
+              <CardHeader className="px-6 py-4 bg-gray-50 dark:bg-black">
+                <CardTitle className="text-xl text-gray-800 dark:text-white">Task Progress</CardTitle>
               </CardHeader>
               <CardContent className="px-6 py-4 space-y-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-600 dark:text-white">
                     <span>Applications</span>
                     <span className="font-semibold">{task.applications?.length || 0}</span>
                   </div>
                   <Progress value={Math.min((task.applications?.length || 0) * 10, 100)} className="h-2 rounded-full" />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-600 dark:text-white">
                     <span>Time Remaining</span>
                     <span className="font-semibold">
                       {task.deadline
@@ -580,11 +578,11 @@ export default function TaskDetailsPage() {
                     className="h-2 rounded-full"
                   />
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4 text-sm">
-                  <p className="font-semibold mb-1">Task Status</p>
+                <div className="rounded-lg bg-gray-50 dark:bg-black p-4 text-sm">
+                  <p className="font-semibold mb-1 text-gray-800 dark:text-white">Task Status</p>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(task.status || "open")}
-                    <span className="text-gray-600">
+                    <span className="text-gray-600 dark:text-white">
                       {task.status === "open"
                         ? "Accepting applications"
                         : task.status === "in-progress"
@@ -600,16 +598,16 @@ export default function TaskDetailsPage() {
           {/* Right Sidebar: Application and Client Info */}
           <aside className="space-y-8">
             {/* Apply for Task */}
-            <Card className="shadow-md">
-              <CardHeader className="px-6 py-4 bg-gray-50">
-                <CardTitle className="text-xl">Apply for this Task</CardTitle>
-                <CardDescription className="text-sm text-gray-600">
+            <Card className="shadow-md dark:bg-black dark:border-white">
+              <CardHeader className="px-6 py-4 bg-gray-50 dark:bg-black">
+                <CardTitle className="text-xl text-gray-800 dark:text-white">Apply for this Task</CardTitle>
+                <CardDescription className="text-sm text-gray-600 dark:text-white">
                   Send a message to the client explaining why you're a good fit.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-6 py-4">
                 {applicationSuccess ? (
-                  <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <Alert className="bg-green-50 text-green-800 border-green-200 dark:bg-green-900 dark:border-green-700">
                     <CheckCircle className="h-5 w-5" />
                     <AlertDescription>
                       Your application has been submitted successfully!
@@ -619,7 +617,7 @@ export default function TaskDetailsPage() {
                   <form onSubmit={handleApply} className="space-y-4">
                     <Textarea
                       placeholder="Write your message here..."
-                      className="min-h-[150px] resize-none"
+                      className="min-h-[150px] resize-none dark:bg-black dark:text-white border dark:border-white"
                       value={applicationMessage}
                       onChange={(e) => setApplicationMessage(e.target.value)}
                       required
@@ -641,9 +639,9 @@ export default function TaskDetailsPage() {
 
             {/* About the Client */}
             {task.postedBy && (
-              <Card className="shadow-md">
-                <CardHeader className="px-6 py-4 bg-gray-50">
-                  <CardTitle className="text-xl">About the Client</CardTitle>
+              <Card className="shadow-md dark:bg-black dark:border-white">
+                <CardHeader className="px-6 py-4 bg-gray-50 dark:bg-black">
+                  <CardTitle className="text-xl text-gray-800 dark:text-white">About the Client</CardTitle>
                 </CardHeader>
                 <CardContent className="px-6 py-4 space-y-4">
                   <div className="flex items-center gap-4">
@@ -656,13 +654,13 @@ export default function TaskDetailsPage() {
                           alt={task.postedBy.name}
                         />
                       ) : (
-                        <AvatarFallback className="bg-gray-200 text-gray-700">
+                        <AvatarFallback className="bg-gray-200 text-gray-700 dark:bg-black dark:text-white">
                           {task.postedBy.name?.charAt(0).toUpperCase() || "C"}
                         </AvatarFallback>
                       )}
                     </Avatar>
                     <div>
-                      <p className="font-semibold">{task.postedBy.name || "Client"}</p>
+                      <p className="font-semibold text-gray-800 dark:text-white">{task.postedBy.name || "Client"}</p>
                     </div>
                   </div>
                   <Separator />
@@ -682,10 +680,10 @@ export default function TaskDetailsPage() {
       {/* Popup Message Dialog */}
       {popUpMessage && (
         <Dialog open={true} onOpenChange={() => setPopUpMessage(null)}>
-          <DialogContent className="max-w-sm mx-auto p-4">
+          <DialogContent className="max-w-sm mx-auto p-4 dark:bg-black">
             <DialogTitle className="sr-only">Notification</DialogTitle>
             <div className="text-center">
-              <p className="text-lg">{popUpMessage}</p>
+              <p className="text-lg text-gray-800 dark:text-white">{popUpMessage}</p>
               <Button variant="outline" className="mt-4" onClick={() => setPopUpMessage(null)}>
                 Close
               </Button>
